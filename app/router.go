@@ -105,7 +105,7 @@ func GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	CURR_DIR, _ := os.Getwd()
 
-	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/default.jpg")
+	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/sergeant.png")
 	if err != nil {
 		errToSend := ErrorToSend{Message: "error while reading user's avatar"}
 		jsonErr, _ := json.Marshal(errToSend)
@@ -141,7 +141,7 @@ func GetUserAvatar(w http.ResponseWriter, r *http.Request) {
 
 	CURR_DIR, _ := os.Getwd()
 
-	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/default.jpg")
+	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/sergeant.png")
 	if err != nil {
 		errToSend := ErrorToSend{Message: "error while reading user's avatar"}
 		jsonErr, _ := json.Marshal(errToSend)
