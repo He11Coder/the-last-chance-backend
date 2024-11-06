@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,9 +26,10 @@ type LoginCredentials struct {
 }
 
 type UserInfo struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	Contacts string `json:"contacts"`
+	UserID    int    `json:"user_id"`
+	Username  string `json:"username"`
+	Contacts  string `json:"contacts"`
+	UserImage string `json:"user_image"`
 }
 
 type ErrorToSend struct {
@@ -101,10 +103,23 @@ func GetUserInfo(w http.ResponseWriter, r *http.Request) {
 		w.Write(jsonErr)
 	}
 
+	CURR_DIR, _ := os.Getwd()
+
+	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/default.jpg")
+	if err != nil {
+		errToSend := ErrorToSend{Message: "error while reading user's avatar"}
+		jsonErr, _ := json.Marshal(errToSend)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(jsonErr)
+	}
+
+	base64Image := base64.StdEncoding.EncodeToString(fileBytes)
+
 	userInfo := UserInfo{
-		UserID:   1,
-		Username: "Сергей Иванов",
-		Contacts: "+79831238497",
+		Username:  "Сергей Иванов",
+		Contacts:  "+79831238497",
+		UserImage: base64Image,
 	}
 
 	jsonUserInfo, _ := json.Marshal(userInfo)
@@ -128,7 +143,7 @@ func GetUserAvatar(w http.ResponseWriter, r *http.Request) {
 
 	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/default.jpg")
 	if err != nil {
-		errToSend := ErrorToSend{Message: fmt.Sprintf("error while reading user's avatar: %v", err)}
+		errToSend := ErrorToSend{Message: "error while reading user's avatar"}
 		jsonErr, _ := json.Marshal(errToSend)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
