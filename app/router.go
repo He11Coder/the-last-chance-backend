@@ -3,7 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -17,11 +19,22 @@ type PetInfo struct {
 	Preferences  []string `json:"preferences"`
 }
 
+type LoginCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type UserInfo struct {
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Contacts string `json:"contacts"`
+}
+
 type ErrorToSend struct {
 	Message string `json:"message"`
 }
 
-func get_pet_info(w http.ResponseWriter, r *http.Request) {
+func GetPetInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	_, convErr := strconv.Atoi(vars["petID"])
 	if convErr != nil {
@@ -46,10 +59,94 @@ func get_pet_info(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonInfo)
 }
 
+func Login(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		errToSend := ErrorToSend{Message: "invalid request body"}
+		jsonErr, _ := json.Marshal(errToSend)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(jsonErr)
+	}
+
+	var loginInfo LoginCredentials
+	err = json.Unmarshal(body, &loginInfo)
+	if err != nil {
+		errToSend := ErrorToSend{Message: "invalid json format: must be with fields 'username' and 'password'"}
+		jsonErr, _ := json.Marshal(errToSend)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(jsonErr)
+	}
+
+	//Check the credentials in database. Authorization.
+
+	userInfo := UserInfo{UserID: 1}
+	jsonUserInfo, _ := json.Marshal(userInfo)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonUserInfo)
+}
+
+func GetUserInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	_, convErr := strconv.Atoi(vars["userID"])
+	if convErr != nil {
+		errToSend := ErrorToSend{Message: "incorrect user ID"}
+		jsonErr, _ := json.Marshal(errToSend)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(jsonErr)
+	}
+
+	userInfo := UserInfo{
+		UserID:   1,
+		Username: "Сергей Иванов",
+		Contacts: "+79831238497",
+	}
+
+	jsonUserInfo, _ := json.Marshal(userInfo)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonUserInfo)
+}
+
+func GetUserAvatar(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	_, convErr := strconv.Atoi(vars["userID"])
+	if convErr != nil {
+		errToSend := ErrorToSend{Message: "incorrect user ID"}
+		jsonErr, _ := json.Marshal(errToSend)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(jsonErr)
+	}
+
+	CURR_DIR, _ := os.Getwd()
+
+	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/default.jpg")
+	if err != nil {
+		errToSend := ErrorToSend{Message: fmt.Sprintf("error while reading user's avatar: %v", err)}
+		jsonErr, _ := json.Marshal(errToSend)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(jsonErr)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Write(fileBytes)
+}
+
 func Run() error {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/pet_info/{petID}", get_pet_info).Methods("GET")
+	router.HandleFunc("/pet_info/{petID}", GetPetInfo).Methods("GET")
+	router.HandleFunc("/login", Login).Methods("POST")
+	router.HandleFunc("/get_user_info/{userID}", GetUserInfo).Methods("GET")
+	router.HandleFunc("/get_avatar/{userID}", GetUserAvatar).Methods("GET")
 
 	http.Handle("/", router)
 
