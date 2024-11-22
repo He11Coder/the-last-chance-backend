@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -10,15 +11,13 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-)
 
-type PetInfo struct {
-	PetID        int    `json:"pet_id,omitempty"`
-	TypeOfAnimal string `json:"type_of_animal"`
-	Name         string `json:"name"`
-	Info         string `json:"info"`
-	PetAvatar    string `json:"avatar"`
-}
+	"go.mongodb.org/mongo-driver/v2/bson"
+
+	"mainService/configs"
+	"mainService/internal/domain"
+	"mainService/internal/repository/mongoTLC"
+)
 
 type LoginCredentials struct {
 	Username string `json:"username"`
@@ -26,10 +25,10 @@ type LoginCredentials struct {
 }
 
 type UserInfo struct {
-	UserID    int    `json:"user_id,omitempty"`
-	Username  string `json:"username"`
-	Contacts  string `json:"contacts"`
-	UserImage string `json:"user_image"`
+	UserID    bson.ObjectID `json:"user_id,omitempty" bson:"_id,omitempty"`
+	Username  string        `json:"username" bson:"name"`
+	Contacts  string        `json:"contacts" bson:"contact"`
+	UserImage string        `json:"user_image" bson:"avatar_url"`
 }
 
 type PetIDList struct {
@@ -40,7 +39,7 @@ type ErrorToSend struct {
 	Message string `json:"message"`
 }
 
-var PetDB = map[int]PetInfo{
+var PetDB = map[int]domain.ApiPetInfo{
 	1: {
 		TypeOfAnimal: "Кошка",
 		Name:         "Мурка",
@@ -154,7 +153,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	//Check the credentials in database. Authorization.
 
-	userInfo := UserInfo{UserID: 1}
+	userInfo := UserInfo{UserID: bson.NewObjectID()}
 	jsonUserInfo, _ := json.Marshal(userInfo)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -250,6 +249,35 @@ func GetUsersPets(w http.ResponseWriter, r *http.Request) {
 }
 
 func Run() error {
+	db, err := GetMongo()
+	if err != nil {
+		return err
+	}
+	defer db.Disconnect(context.TODO())
+
+	/*c := db.Database("tlc").Collection("user")
+
+	u := UserInfo{
+		Username:  "Сергей Иванов",
+		Contacts:  "+79831238497",
+		UserImage: "/assets/avatars/sergeant.png",
+	}
+
+	res, err := c.InsertOne(context.TODO(), u)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Ins ID:", res.InsertedID)*/
+
+	_ = mongoTLC.NewMongoUserRepository(db.Database("tlc"))
+
+	//userObjID, err := primitive.ObjectIDFromHex("673de035bbe21f94ce848f4c")
+	//userObjID, err := bson.ObjectIDFromHex("673de035bbe21f94ce848f4c")
+	if err != nil {
+		return err
+	}
+	//userRepo.AddPet(userObjID, &PetDB[2])
+
 	router := mux.NewRouter()
 
 	router.HandleFunc("/pet_info/{petID}", GetPetInfo).Methods("GET")
@@ -262,7 +290,7 @@ func Run() error {
 
 	fmt.Printf("\tstarting server at %s\n", ":8081")
 
-	err := http.ListenAndServe(":8081", nil)
+	err = http.ListenAndServe(configs.PORT, nil)
 	if err != nil {
 		return err
 	}
