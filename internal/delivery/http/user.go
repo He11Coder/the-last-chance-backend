@@ -72,17 +72,13 @@ func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/sergeant.png")
 	if err != nil {
-		errToSend := ErrorToSend{Message: "error while reading user's avatar"}
-		jsonErr, _ := json.Marshal(errToSend)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(jsonErr)
+		_ = responseTemplates.SendErrorMessage(w, AVATAR_ERROR, http.StatusInternalServerError)
 		return
 	}
 
 	base64Image := base64.StdEncoding.EncodeToString(fileBytes)
 
-	userInfo := UserInfo{
+	userInfo := domain.ApiUserInfo{
 		Username:  "Сергей Иванов",
 		Contacts:  "+79831238497",
 		UserImage: base64Image,
@@ -98,11 +94,7 @@ func (h *UserHandler) GetUserAvatar(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	_, convErr := strconv.Atoi(vars["userID"])
 	if convErr != nil {
-		errToSend := ErrorToSend{Message: "incorrect user ID"}
-		jsonErr, _ := json.Marshal(errToSend)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(jsonErr)
+		_ = responseTemplates.SendErrorMessage(w, BAD_GET_PARAMETER, http.StatusBadRequest)
 		return
 	}
 
@@ -110,11 +102,7 @@ func (h *UserHandler) GetUserAvatar(w http.ResponseWriter, r *http.Request) {
 
 	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/sergeant.png")
 	if err != nil {
-		errToSend := ErrorToSend{Message: "error while reading user's avatar"}
-		jsonErr, _ := json.Marshal(errToSend)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(jsonErr)
+		_ = responseTemplates.SendErrorMessage(w, AVATAR_ERROR, http.StatusInternalServerError)
 		return
 	}
 
@@ -127,16 +115,12 @@ func (h *UserHandler) GetUsersPets(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	_, convErr := strconv.Atoi(vars["userID"])
 	if convErr != nil {
-		errToSend := ErrorToSend{Message: "incorrect user ID"}
-		jsonErr, _ := json.Marshal(errToSend)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(jsonErr)
+		_ = responseTemplates.SendErrorMessage(w, BAD_GET_PARAMETER, http.StatusBadRequest)
 		return
 	}
 
 	petIDs := []int{1, 2, 3, 4, 5, 6, 7}
-	petList := PetIDList{PetIDs: petIDs}
+	petList := domain.PetIDList{PetIDs: petIDs}
 
 	jsonPetList, _ := json.Marshal(petList)
 	w.Header().Set("Content-Type", "application/json")

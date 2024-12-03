@@ -47,3 +47,7 @@ func (dbInfo *DBPetInfo) ToApi() *ApiPetInfo {
 
 	return apiInfo
 }
+
+type PetIDList struct {
+	PetIDs []int `json:"pet_ids"`
+}

@@ -31,10 +31,6 @@ type UserInfo struct {
 	UserImage string        `json:"user_image" bson:"avatar_url"`
 }
 
-type PetIDList struct {
-	PetIDs []int `json:"pet_ids"`
-}
-
 type ErrorToSend struct {
 	Message string `json:"message"`
 }
@@ -240,7 +236,7 @@ func GetUsersPets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	petIDs := []int{1, 2, 3, 4, 5, 6, 7}
-	petList := PetIDList{PetIDs: petIDs}
+	petList := domain.PetIDList{PetIDs: petIDs}
 
 	jsonPetList, _ := json.Marshal(petList)
 	w.Header().Set("Content-Type", "application/json")

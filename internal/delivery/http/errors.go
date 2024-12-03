@@ -8,4 +8,5 @@ var (
 	BAD_JSON_FORMAT   = fmt.Errorf("invalid json format: must be with fields 'username' and 'password'")
 	MISSING_USER_ID   = fmt.Errorf("user ID is missing")
 	AUTH_ERROR        = fmt.Errorf("authorization error")
+	AVATAR_ERROR      = fmt.Errorf("error while reading user's avatar")
 )
