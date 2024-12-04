@@ -1,4 +1,4 @@
-package thelastchancebackend
+package main
 
 import (
 	"context"
