@@ -43,6 +43,8 @@ func (ucase *UserUsecase) GetUserInfo(userID string) (*domain.ApiUserInfo, error
 		return nil, err
 	}
 
+	uInfo.UserImage = ""
+
 	return uInfo, nil
 }
 
