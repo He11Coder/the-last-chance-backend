@@ -43,8 +43,6 @@ func (ucase *UserUsecase) GetUserInfo(userID string) (*domain.ApiUserInfo, error
 		return nil, err
 	}
 
-	uInfo.UserImage = "1"
-
 	return uInfo, nil
 }
 
@@ -83,7 +81,7 @@ func (ucase *UserUsecase) GetUserPets(userID string) (*domain.PetIDList, error) 
 func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) error {
 	petInfo.PetAvatar = ""
 
-	err := ucase.AddPet(userID, petInfo)
+	err := ucase.userRepo.AddPet(userID, petInfo)
 	if err != nil {
 		return err
 	}

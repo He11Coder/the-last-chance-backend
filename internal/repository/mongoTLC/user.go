@@ -18,6 +18,8 @@ type IUserRepository interface {
 	AddUser() error
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
 	GetAvatarPath(userID string) (string, error)
+	AddPet(userID string, pet *domain.ApiPetInfo) error
+	AddService(service *domain.DBService) error
 	GetUserPets(userID string) ([]string, error)
 }
 

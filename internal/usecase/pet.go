@@ -26,7 +26,7 @@ func NewPetUsecase(
 }
 
 func (ucase *PetUsecase) GetPetInfo(petID string) (*domain.ApiPetInfo, error) {
-	petInfo, err := ucase.GetPetInfo(petID)
+	petInfo, err := ucase.petRepo.GetPetInfo(petID)
 	if err != nil {
 		return nil, err
 	}
