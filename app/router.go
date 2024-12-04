@@ -2,24 +2,18 @@ package app
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"strconv"
 
 	"github.com/gorilla/mux"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
-
 	"mainService/configs"
-	"mainService/internal/domain"
+	deliveryHTTP "mainService/internal/delivery/http"
 	"mainService/internal/repository/mongoTLC"
+	"mainService/internal/usecase"
 )
 
-type LoginCredentials struct {
+/*type LoginCredentials struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -242,7 +236,7 @@ func GetUsersPets(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonPetList)
-}
+}*/
 
 func Run() error {
 	db, err := GetMongo()
@@ -265,22 +259,30 @@ func Run() error {
 	}
 	fmt.Println("Ins ID:", res.InsertedID)*/
 
-	_ = mongoTLC.NewMongoUserRepository(db.Database("tlc"))
+	//_ = mongoTLC.NewMongoUserRepository(db.Database("tlc"))
 
 	//userObjID, err := primitive.ObjectIDFromHex("673de035bbe21f94ce848f4c")
 	//userObjID, err := bson.ObjectIDFromHex("673de035bbe21f94ce848f4c")
-	if err != nil {
-		return err
-	}
+	//if err != nil {
+	//	return err
+	//}
 	//userRepo.AddPet(userObjID, &PetDB[2])
 
-	router := mux.NewRouter()
+	userRepo := mongoTLC.NewMongoUserRepository(db.Database("tlc"))
+	petRepo := mongoTLC.NewMongoPetRepository(db.Database("tlc"))
 
-	router.HandleFunc("/pet_info/{petID}", GetPetInfo).Methods("GET")
+	userUsecase := usecase.NewUserUsecase(userRepo)
+	petUsecase := usecase.NewPetUsecase(petRepo)
+
+	router := mux.NewRouter()
+	deliveryHTTP.NewUserHandler(router, userUsecase)
+	deliveryHTTP.NewPetHandler(router, petUsecase)
+
+	/*router.HandleFunc("/pet_info/{petID}", GetPetInfo).Methods("GET")
 	router.HandleFunc("/login", Login).Methods("POST")
 	router.HandleFunc("/get_user_info/{userID}", GetUserInfo).Methods("GET")
 	router.HandleFunc("/get_avatar/{userID}", GetUserAvatar).Methods("GET")
-	router.HandleFunc("/get_pet_list/{userID}", GetUsersPets).Methods("GET")
+	router.HandleFunc("/get_pet_list/{userID}", GetUsersPets).Methods("GET")*/
 
 	http.Handle("/", router)
 

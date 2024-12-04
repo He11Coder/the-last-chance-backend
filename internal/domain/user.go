@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"mainService/pkg/serverErrors"
+
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -50,7 +52,7 @@ func (dbInfo *DBUserInfo) ToApi() (*ApiUserInfo, error) {
 		for i, pet := range dbInfo.PetIDs {
 			petID, ok := pet["$id"].(bson.ObjectID)
 			if !ok {
-				return nil, CAST_ERROR
+				return nil, serverErrors.CAST_ERROR
 			}
 
 			strPetIDs[i] = petID.Hex()

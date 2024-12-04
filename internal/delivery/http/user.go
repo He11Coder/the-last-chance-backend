@@ -1,12 +1,10 @@
 package http
 
 import (
-	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strconv"
 
 	"github.com/gorilla/mux"
 
@@ -28,6 +26,7 @@ func NewUserHandler(router *mux.Router, userUCase usecase.IUserUsecase) {
 	router.HandleFunc("/get_user_info/{userID}", handler.GetUserInfo).Methods("GET")
 	router.HandleFunc("/get_avatar/{userID}", handler.GetUserAvatar).Methods("GET")
 	router.HandleFunc("/get_pet_list/{userID}", handler.GetUsersPets).Methods("GET")
+	router.HandleFunc("/add_pet/{userID}", handler.AddPet).Methods("POST")
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -62,26 +61,17 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	_, ok := vars["userID"]
+	userID, ok := vars["userID"]
 	if !ok {
 		_ = responseTemplates.SendErrorMessage(w, MISSING_USER_ID, http.StatusBadRequest)
 		return
 	}
 
-	CURR_DIR, _ := os.Getwd()
-
-	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/sergeant.png")
+	userInfo, err := h.userUsecase.GetUserInfo(userID)
 	if err != nil {
-		_ = responseTemplates.SendErrorMessage(w, AVATAR_ERROR, http.StatusInternalServerError)
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		fmt.Print(err)
 		return
-	}
-
-	base64Image := base64.StdEncoding.EncodeToString(fileBytes)
-
-	userInfo := domain.ApiUserInfo{
-		Username:  "Сергей Иванов",
-		Contacts:  "+79831238497",
-		UserImage: base64Image,
 	}
 
 	jsonUserInfo, _ := json.Marshal(userInfo)
@@ -92,38 +82,74 @@ func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) GetUserAvatar(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	_, convErr := strconv.Atoi(vars["userID"])
-	if convErr != nil {
+	userID, ok := vars["userID"]
+	if !ok {
 		_ = responseTemplates.SendErrorMessage(w, BAD_GET_PARAMETER, http.StatusBadRequest)
 		return
 	}
 
-	CURR_DIR, _ := os.Getwd()
-
-	fileBytes, err := os.ReadFile(CURR_DIR + "/assets/avatars/sergeant.png")
+	base64Image, err := h.userUsecase.GetUserAvatar(userID)
 	if err != nil {
-		_ = responseTemplates.SendErrorMessage(w, AVATAR_ERROR, http.StatusInternalServerError)
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		fmt.Print(err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(fileBytes)
+	w.Write([]byte(base64Image))
 }
 
 func (h *UserHandler) GetUsersPets(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	_, convErr := strconv.Atoi(vars["userID"])
-	if convErr != nil {
+	userID, ok := vars["userID"]
+	if !ok {
 		_ = responseTemplates.SendErrorMessage(w, BAD_GET_PARAMETER, http.StatusBadRequest)
 		return
 	}
 
-	petIDs := []int{1, 2, 3, 4, 5, 6, 7}
-	petList := domain.PetIDList{PetIDs: petIDs}
+	petIDs, err := h.userUsecase.GetUserPets(userID)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		fmt.Print(err)
+		return
+	}
 
-	jsonPetList, _ := json.Marshal(petList)
+	jsonPetIDs, _ := json.Marshal(petIDs)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonPetList)
+	w.Write(jsonPetIDs)
+}
+
+func (h *UserHandler) AddPet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID, ok := vars["userID"]
+	if !ok {
+		_ = responseTemplates.SendErrorMessage(w, BAD_GET_PARAMETER, http.StatusBadRequest)
+		return
+	}
+
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
+		return
+	}
+
+	newPet := new(domain.ApiPetInfo)
+	err = json.Unmarshal(body, newPet)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
+		return
+	}
+
+	err = h.userUsecase.AddPet(userID, newPet)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		fmt.Print(err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

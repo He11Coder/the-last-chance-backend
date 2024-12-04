@@ -49,5 +49,5 @@ func (dbInfo *DBPetInfo) ToApi() *ApiPetInfo {
 }
 
 type PetIDList struct {
-	PetIDs []int `json:"pet_ids"`
+	PetIDs []string `json:"pet_ids"`
 }

@@ -11,8 +11,9 @@ import (
 type IUserUsecase interface {
 	Login(cred *domain.LoginCredentials) (string, error)
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
-	GetUserAvatar(userID string)
-	GetUserPets()
+	GetUserAvatar(userID string) (string, error)
+	GetUserPets(userID string) (*domain.PetIDList, error)
+	AddPet(userID string, petInfo *domain.ApiPetInfo) error
 }
 
 type UserUsecase struct {
@@ -37,26 +38,53 @@ func (ucase *UserUsecase) GetUserInfo(userID string) (*domain.ApiUserInfo, error
 		return nil, err
 	}
 
-	if uInfo.UserImage != "" {
-		fileBytes, err := os.ReadFile(configs.CURR_DIR + uInfo.Username)
-		if err != nil {
-			return nil, err
-		}
-
-		base64Image := base64.StdEncoding.EncodeToString(fileBytes)
-		uInfo.UserImage = base64Image
+	uInfo.UserImage, err = ucase.GetUserAvatar(userID)
+	if err != nil {
+		return nil, err
 	}
 
 	return uInfo, nil
 }
 
-func (ucase *UserUsecase) GetUserAvatar(userID string) {
-	_, err := ucase.userRepo.GetAvatarPath(userID)
+func (ucase *UserUsecase) GetUserAvatar(userID string) (string, error) {
+	avaPath, err := ucase.userRepo.GetAvatarPath(userID)
 	if err != nil {
-		return
+		return "", nil
 	}
+
+	base64Image := ""
+	if avaPath != "" {
+		fileBytes, err := os.ReadFile(configs.CURR_DIR + avaPath)
+		if err != nil {
+			return "", err
+		}
+
+		base64Image = base64.StdEncoding.EncodeToString(fileBytes)
+	}
+
+	return base64Image, nil
 }
 
-func (ucase *UserUsecase) GetUserPets() {
+func (ucase *UserUsecase) GetUserPets(userID string) (*domain.PetIDList, error) {
+	petIDs, err := ucase.userRepo.GetUserPets(userID)
+	if err != nil {
+		return nil, err
+	}
 
+	apiPetIDs := &domain.PetIDList{
+		PetIDs: petIDs,
+	}
+
+	return apiPetIDs, nil
+}
+
+func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) error {
+	petInfo.PetAvatar = ""
+
+	err := ucase.AddPet(userID, petInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
