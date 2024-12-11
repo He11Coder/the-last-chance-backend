@@ -5,5 +5,15 @@ services:
       - '27017:27017'
     volumes:
       - dbdata6:/data/db
+
+  sessions_hnh:
+    container_name: redis_session
+    image: redis:7.2-alpine
+    restart: always
+    ports: 
+    - "8008:6379"
+    volumes:
+    - $PWD/redis_data:/data
+
 volumes:
   dbdata6:

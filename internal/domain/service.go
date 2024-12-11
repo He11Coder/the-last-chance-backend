@@ -1,6 +1,10 @@
 package domain
 
-import "go.mongodb.org/mongo-driver/v2/bson"
+import (
+	"mainService/pkg/serverErrors"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
 
 type Role string
 
@@ -10,6 +14,7 @@ const (
 )
 
 type ApiService struct {
+	ServiceID   string   `json:"service_id"`
 	Type        Role     `json:"role"`
 	UserID      string   `json:"user_id,omitempty"`
 	Title       string   `json:"title"`
@@ -19,12 +24,13 @@ type ApiService struct {
 }
 
 type DBService struct {
-	Type        Role            `bson:"role"`
-	UserID      bson.ObjectID   `bson:"_id,omitempty"`
-	Title       string          `bson:"title"`
-	Description string          `bson:"description,omitempty"`
-	UserImage   string          `bson:"user_image,omitempty"`
-	PetIDs      []bson.ObjectID `bson:"pet_ids,omitempty"`
+	ServiceID   bson.ObjectID `bson:"_id,omitempty"`
+	Type        Role          `bson:"role,omitempty"`
+	UserID      bson.M        `bson:"owner,omitempty"`
+	Title       string        `bson:"title"`
+	Description string        `bson:"description,omitempty"`
+	UserImage   string        `bson:"user_image,omitempty"`
+	PetIDs      []bson.M      `bson:"pets,omitempty"`
 }
 
 func (api *ApiService) ToDB() (*DBService, error) {
@@ -35,42 +41,71 @@ func (api *ApiService) ToDB() (*DBService, error) {
 		UserImage:   api.UserImage,
 	}
 
-	dbUserID, err := bson.ObjectIDFromHex(api.UserID)
+	serviceID, err := bson.ObjectIDFromHex(api.ServiceID)
 	if err != nil {
 		return nil, err
 	}
 
-	dbPetIDs := make([]bson.ObjectID, len(api.PetIDs))
+	dbServ.ServiceID = serviceID
+
+	mongoUserID, err := bson.ObjectIDFromHex(api.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	userDBRef := bson.M{
+		"$ref": "user",
+		"$id":  mongoUserID,
+	}
+
+	dbServ.UserID = userDBRef
+
+	dbPetIDs := make([]bson.M, len(api.PetIDs))
 	for i, apiID := range api.PetIDs {
 		dbID, err := bson.ObjectIDFromHex(apiID)
 		if err != nil {
 			return nil, err
 		}
 
-		dbPetIDs[i] = dbID
+		petDBRef := bson.M{
+			"$ref": "pet",
+			"$id":  dbID,
+		}
+
+		dbPetIDs[i] = petDBRef
 	}
 
-	dbServ.UserID = dbUserID
 	dbServ.PetIDs = dbPetIDs
 
 	return dbServ, nil
 }
 
-func (db *DBService) ToApi() *ApiService {
+func (db *DBService) ToApi() (*ApiService, error) {
 	apiServ := &ApiService{
+		ServiceID:   db.ServiceID.Hex(),
 		Type:        db.Type,
-		UserID:      db.UserID.Hex(),
 		Title:       db.Title,
 		Description: db.Description,
 		UserImage:   db.UserImage,
 	}
 
+	userID, ok := db.UserID["$id"].(bson.ObjectID)
+	if !ok {
+		return nil, serverErrors.CAST_ERROR
+	}
+
+	apiServ.UserID = userID.Hex()
+
 	apiPetIDs := make([]string, len(db.PetIDs))
-	for i, apiID := range db.PetIDs {
-		apiPetIDs[i] = apiID.Hex()
+	for i, pet := range db.PetIDs {
+		petID, ok := pet["$id"].(bson.ObjectID)
+		if !ok {
+			return nil, serverErrors.CAST_ERROR
+		}
+		apiPetIDs[i] = petID.Hex()
 	}
 
 	apiServ.PetIDs = apiPetIDs
 
-	return apiServ
+	return apiServ, nil
 }

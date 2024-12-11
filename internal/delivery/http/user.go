@@ -27,6 +27,7 @@ func NewUserHandler(router *mux.Router, userUCase usecase.IUserUsecase) {
 	router.HandleFunc("/get_avatar/{userID}", handler.GetUserAvatar).Methods("GET")
 	router.HandleFunc("/get_pet_list/{userID}", handler.GetUsersPets).Methods("GET")
 	router.HandleFunc("/add_pet/{userID}", handler.AddPet).Methods("POST")
+	router.HandleFunc("/register", handler.Register).Methods("POST")
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -46,17 +47,16 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Check the credentials in database. Authorization.
-	sessionID, err := h.userUsecase.Login(loginInfo)
+	loginResp, err := h.userUsecase.Login(loginInfo)
 	if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, AUTH_ERROR, http.StatusForbidden)
 		return
 	}
 
-	userInfo := domain.ApiUserInfo{UserID: sessionID}
-	jsonUserInfo, _ := json.Marshal(userInfo)
+	jsonLoginInfo, _ := json.Marshal(loginResp)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonUserInfo)
+	w.Write(jsonLoginInfo)
 }
 
 func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
@@ -152,4 +152,32 @@ func (h *UserHandler) AddPet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
+		return
+	}
+
+	newUser := new(domain.ApiUserInfo)
+	err = json.Unmarshal(body, newUser)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
+		return
+	}
+
+	loginResp, err := h.userUsecase.AddUser(newUser)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		return
+	}
+
+	jsonLoginResp, _ := json.Marshal(loginResp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonLoginResp)
 }

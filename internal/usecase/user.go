@@ -5,11 +5,15 @@ import (
 	"mainService/configs"
 	"mainService/internal/domain"
 	"mainService/internal/repository/mongoTLC"
+	"mainService/internal/repository/redisTLC"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 type IUserUsecase interface {
-	Login(cred *domain.LoginCredentials) (string, error)
+	Login(cred *domain.LoginCredentials) (*domain.LoginResponse, error)
+	AddUser(newUser *domain.ApiUserInfo) (*domain.LoginResponse, error)
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
 	GetUserAvatar(userID string) (string, error)
 	GetUserPets(userID string) (*domain.PetIDList, error)
@@ -17,19 +21,59 @@ type IUserUsecase interface {
 }
 
 type UserUsecase struct {
-	userRepo mongoTLC.IUserRepository
+	userRepo    mongoTLC.IUserRepository
+	sessionRepo redisTLC.IAuthRepository
 }
 
 func NewUserUsecase(
 	userRepository mongoTLC.IUserRepository,
+	sessionRepository redisTLC.IAuthRepository,
 ) IUserUsecase {
 	return &UserUsecase{
-		userRepo: userRepository,
+		userRepo:    userRepository,
+		sessionRepo: sessionRepository,
 	}
 }
 
-func (ucase *UserUsecase) Login(cred *domain.LoginCredentials) (string, error) {
-	return "1", nil
+func (ucase *UserUsecase) Login(cred *domain.LoginCredentials) (*domain.LoginResponse, error) {
+	userID, err := ucase.userRepo.CheckUser(cred)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionID := uuid.NewString()
+
+	err = ucase.sessionRepo.AddSession(sessionID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.LoginResponse{UserID: userID, SessionID: sessionID}, nil
+}
+
+func (ucase *UserUsecase) AddUser(newUser *domain.ApiUserInfo) (*domain.LoginResponse, error) {
+	verifStatus := ucase.userRepo.ValidateLogin(newUser.Login)
+	if verifStatus != nil {
+		return nil, verifStatus
+	}
+
+	if len(newUser.Password) == 0 {
+		return nil, EMPTY_PASSWORD
+	}
+
+	userID, err := ucase.userRepo.AddUser(newUser)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionID := uuid.NewString()
+
+	err = ucase.sessionRepo.AddSession(sessionID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.LoginResponse{UserID: userID, SessionID: sessionID}, nil
 }
 
 func (ucase *UserUsecase) GetUserInfo(userID string) (*domain.ApiUserInfo, error) {

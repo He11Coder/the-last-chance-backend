@@ -11,16 +11,19 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"mainService/internal/domain"
+	"mainService/pkg/authUtils"
 	"mainService/pkg/serverErrors"
 )
 
 type IUserRepository interface {
-	AddUser() error
+	ValidateLogin(login string) error
+	CheckUser(cred *domain.LoginCredentials) (string, error)
+	AddUser(newUser *domain.ApiUserInfo) (string, error)
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
 	GetAvatarPath(userID string) (string, error)
 	AddPet(userID string, pet *domain.ApiPetInfo) error
-	AddService(service *domain.DBService) error
 	GetUserPets(userID string) ([]string, error)
+	GetUserServices(userID string) ([]string, error)
 }
 
 type mongoUserRepository struct {
@@ -35,8 +38,71 @@ func NewMongoUserRepository(db *mongo.Database) IUserRepository {
 	}
 }
 
-func (repo *mongoUserRepository) AddUser() error {
-	return nil
+func (repo *mongoUserRepository) ValidateLogin(login string) error {
+	if len(login) == 0 {
+		return EMPTY_LOGIN
+	}
+
+	filter := bson.M{
+		"login": login,
+	}
+
+	var result bson.M
+	err := repo.Coll.FindOne(context.TODO(), filter).Decode(&result)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil
+	} else if err != nil {
+		return err
+	} else {
+		return LOGIN_EXISTS
+	}
+}
+
+func (repo *mongoUserRepository) CheckUser(cred *domain.LoginCredentials) (string, error) {
+	var userCred struct {
+		hashed_pass []byte        `bson:"hashed_password"`
+		salt        []byte        `bson:"salt"`
+		id          bson.ObjectID `bson:"_id"`
+	}
+
+	opt := options.FindOne().SetProjection(bson.M{"hashed_password": 1, "salt": 1, "_id": 1})
+	err := repo.Coll.FindOne(context.TODO(), bson.M{"login": cred.Username}, opt).Decode(&userCred)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return "", NOT_FOUND
+	} else if err != nil {
+		return "", err
+	}
+
+	isEqual := authUtils.ComparePasswordAndHash(cred.Password, userCred.salt, userCred.hashed_pass)
+	if !isEqual {
+		return "", INCORRECT_CREDENTIALS
+	}
+
+	return userCred.id.Hex(), nil
+}
+
+func (repo *mongoUserRepository) AddUser(newUser *domain.ApiUserInfo) (string, error) {
+	password := newUser.Password
+	dbUser, err := newUser.ToDB()
+	if err != nil {
+		return "", err
+	}
+
+	hashedPass, salt, err := authUtils.GenerateHash(password)
+	if err != nil {
+		return "", err
+	}
+
+	dbUser.HashedPassword = hashedPass
+	dbUser.Salt = salt
+
+	res, err := repo.Coll.InsertOne(context.TODO(), *dbUser)
+	if err != nil {
+		return "", err
+	}
+
+	userID, _ := res.InsertedID.(bson.ObjectID)
+	return userID.Hex(), nil
 }
 
 func (repo *mongoUserRepository) GetUserInfo(userID string) (*domain.ApiUserInfo, error) {
@@ -97,13 +163,6 @@ func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) e
 	return nil
 }
 
-func (repo *mongoUserRepository) AddService(service *domain.DBService) error {
-	//serv_col := repo.DB.Collection("service")
-
-	//res, err := serv_col.InsertOne(context.TODO())
-	return nil
-}
-
 func (repo *mongoUserRepository) GetAvatarPath(userID string) (string, error) {
 	mongoID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
@@ -154,4 +213,35 @@ func (repo *mongoUserRepository) GetUserPets(userID string) ([]string, error) {
 	}
 
 	return strPetIDs, nil
+}
+
+func (repo *mongoUserRepository) GetUserServices(userID string) ([]string, error) {
+	mongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, BAD_USER_ID
+	}
+
+	var userServices struct {
+		serviceIDs []bson.M `bson:"services"`
+	}
+
+	opt := options.FindOne().SetProjection(bson.M{"services": 1, "_id": 0})
+	err = repo.Coll.FindOne(context.TODO(), bson.M{"_id": mongoID}, opt).Decode(&userServices)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	strServiceIDs := make([]string, len(userServices.serviceIDs))
+	for i, service := range userServices.serviceIDs {
+		serviceID, ok := service["$id"].(bson.ObjectID)
+		if !ok {
+			return nil, serverErrors.CAST_ERROR
+		}
+
+		strServiceIDs[i] = serviceID.Hex()
+	}
+
+	return strServiceIDs, nil
 }

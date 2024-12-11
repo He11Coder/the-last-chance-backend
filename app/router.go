@@ -10,6 +10,7 @@ import (
 	"mainService/configs"
 	deliveryHTTP "mainService/internal/delivery/http"
 	"mainService/internal/repository/mongoTLC"
+	"mainService/internal/repository/redisTLC"
 	"mainService/internal/usecase"
 )
 
@@ -245,6 +246,9 @@ func Run() error {
 	}
 	defer db.Disconnect(context.TODO())
 
+	redisDB := GetRedis()
+	defer redisDB.Close()
+
 	/*c := db.Database("tlc").Collection("user")
 
 	u := UserInfo{
@@ -270,8 +274,9 @@ func Run() error {
 
 	userRepo := mongoTLC.NewMongoUserRepository(db.Database("tlc"))
 	petRepo := mongoTLC.NewMongoPetRepository(db.Database("tlc"))
+	sessionRepo := redisTLC.NewRedisAuthRepository(redisDB)
 
-	userUsecase := usecase.NewUserUsecase(userRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo, sessionRepo)
 	petUsecase := usecase.NewPetUsecase(petRepo)
 
 	router := mux.NewRouter()
