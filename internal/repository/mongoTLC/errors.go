@@ -10,4 +10,5 @@ var (
 	EMPTY_LOGIN           = fmt.Errorf("login must be non-empty")
 	LOGIN_EXISTS          = fmt.Errorf("specified login already exists")
 	INCORRECT_CREDENTIALS = fmt.Errorf("incorrect credentials")
+	ACCESS_DENIED         = fmt.Errorf("you have no access to this resource")
 )

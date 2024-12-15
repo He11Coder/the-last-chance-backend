@@ -16,6 +16,8 @@ import (
 
 type IServiceRepository interface {
 	AddService(service *domain.ApiService) error
+	//TODO
+	DeleteService(userID, serviceID string) error
 	GetServiceByID(serviceID string) (*domain.ApiService, error)
 	GetServicesByIDs(serviceIDs ...string) ([]*domain.ApiService, error)
 }
@@ -63,6 +65,10 @@ func (repo *mongoServiceRepository) AddService(service *domain.ApiService) error
 		return err
 	}
 
+	return nil
+}
+
+func (repo *mongoServiceRepository) DeleteService(userID, serviceID string) error {
 	return nil
 }
 

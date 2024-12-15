@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/base64"
 	"mainService/pkg/serverErrors"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -21,43 +22,65 @@ type DBUserInfo struct {
 	UserID         bson.ObjectID `bson:"_id,omitempty"`
 	Login          string        `bson:"login,omitempty"`
 	HashedPassword []byte        `bson:"hashed_password,omitempty"`
-	Salt           []byte        `bson:"salt"`
+	Salt           []byte        `bson:"salt,omitempty"`
 	Username       string        `bson:"name,omitempty"`
 	Contacts       string        `bson:"contact,omitempty"`
-	UserImage      string        `bson:"avatar_url,omitempty"`
-	UserBackImage  string        `bson:"background_url,omitempty"`
+	UserImage      []byte        `bson:"avatar_url,omitempty"`
+	UserBackImage  []byte        `bson:"background_url,omitempty"`
 	PetIDs         []bson.M      `bson:"pets,omitempty"`
 }
 
 func (apiInfo *ApiUserInfo) ToDB() (*DBUserInfo, error) {
 	dbInfo := &DBUserInfo{
-		Login:         apiInfo.Login,
-		Username:      apiInfo.Username,
-		Contacts:      apiInfo.Contacts,
-		UserImage:     apiInfo.UserImage,
-		UserBackImage: apiInfo.UserBackImage,
+		Login:    apiInfo.Login,
+		Username: apiInfo.Username,
+		Contacts: apiInfo.Contacts,
 	}
 
-	dbID, err := bson.ObjectIDFromHex(apiInfo.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	dbInfo.UserID = dbID
-
-	dbIDs := make([]bson.M, len(apiInfo.PetIDs))
-	for i, pet := range apiInfo.PetIDs {
-		mongoID, err := bson.ObjectIDFromHex(pet)
+	if apiInfo.UserID != "" {
+		dbID, err := bson.ObjectIDFromHex(apiInfo.UserID)
 		if err != nil {
 			return nil, err
 		}
 
-		petDBRef := bson.M{
-			"$ref": "pet",
-			"$id":  mongoID,
+		dbInfo.UserID = dbID
+	}
+
+	if len(apiInfo.PetIDs) > 0 {
+		dbIDs := make([]bson.M, len(apiInfo.PetIDs))
+		for i, pet := range apiInfo.PetIDs {
+			mongoID, err := bson.ObjectIDFromHex(pet)
+			if err != nil {
+				return nil, err
+			}
+
+			petDBRef := bson.M{
+				"$ref": "pet",
+				"$id":  mongoID,
+			}
+
+			dbIDs[i] = petDBRef
 		}
 
-		dbIDs[i] = petDBRef
+		dbInfo.PetIDs = dbIDs
+	}
+
+	if apiInfo.UserImage != "" {
+		imageBytes, err := base64.StdEncoding.DecodeString(apiInfo.UserImage)
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo.UserImage = imageBytes
+	}
+
+	if apiInfo.UserBackImage != "" {
+		backImageBytes, err := base64.StdEncoding.DecodeString(apiInfo.UserBackImage)
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo.UserBackImage = backImageBytes
 	}
 
 	return dbInfo, nil
@@ -65,12 +88,10 @@ func (apiInfo *ApiUserInfo) ToDB() (*DBUserInfo, error) {
 
 func (dbInfo *DBUserInfo) ToApi() (*ApiUserInfo, error) {
 	apiInfo := &ApiUserInfo{
-		UserID:        dbInfo.UserID.Hex(),
-		Login:         dbInfo.Login,
-		Username:      dbInfo.Username,
-		Contacts:      dbInfo.Contacts,
-		UserImage:     dbInfo.UserImage,
-		UserBackImage: dbInfo.UserBackImage,
+		UserID:   dbInfo.UserID.Hex(),
+		Login:    dbInfo.Login,
+		Username: dbInfo.Username,
+		Contacts: dbInfo.Contacts,
 	}
 
 	if len(dbInfo.PetIDs) > 0 {
@@ -85,6 +106,14 @@ func (dbInfo *DBUserInfo) ToApi() (*ApiUserInfo, error) {
 		}
 
 		apiInfo.PetIDs = strPetIDs
+	}
+
+	if len(dbInfo.UserImage) != 0 {
+		apiInfo.UserImage = base64.StdEncoding.EncodeToString(dbInfo.UserImage)
+	}
+
+	if len(dbInfo.UserBackImage) != 0 {
+		apiInfo.UserBackImage = base64.StdEncoding.EncodeToString(dbInfo.UserBackImage)
 	}
 
 	return apiInfo, nil

@@ -19,9 +19,15 @@ type IUserRepository interface {
 	ValidateLogin(login string) error
 	CheckUser(cred *domain.LoginCredentials) (string, error)
 	AddUser(newUser *domain.ApiUserInfo) (string, error)
+	//TODO
+	UpdateUser(userID string, updInfo *domain.ApiUserInfo) error
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
-	GetAvatarPath(userID string) (string, error)
+	GetAvatarBytes(userID string) ([]byte, error)
 	AddPet(userID string, pet *domain.ApiPetInfo) error
+	//TODO
+	DeletePet(userID, petID string) error
+	//TODO
+	UpdatePet(userID, petID string, updInfo *domain.ApiPetInfo) error
 	GetUserPets(userID string) ([]string, error)
 	GetUserServices(userID string) ([]string, error)
 }
@@ -59,26 +65,22 @@ func (repo *mongoUserRepository) ValidateLogin(login string) error {
 }
 
 func (repo *mongoUserRepository) CheckUser(cred *domain.LoginCredentials) (string, error) {
-	var userCred struct {
-		hashed_pass []byte        `bson:"hashed_password"`
-		salt        []byte        `bson:"salt"`
-		id          bson.ObjectID `bson:"_id"`
-	}
+	var userCr domain.DBUserInfo
 
 	opt := options.FindOne().SetProjection(bson.M{"hashed_password": 1, "salt": 1, "_id": 1})
-	err := repo.Coll.FindOne(context.TODO(), bson.M{"login": cred.Username}, opt).Decode(&userCred)
+	err := repo.Coll.FindOne(context.TODO(), bson.M{"login": cred.Username}, opt).Decode(&userCr)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return "", NOT_FOUND
 	} else if err != nil {
 		return "", err
 	}
 
-	isEqual := authUtils.ComparePasswordAndHash(cred.Password, userCred.salt, userCred.hashed_pass)
+	isEqual := authUtils.ComparePasswordAndHash(cred.Password, userCr.Salt, userCr.HashedPassword)
 	if !isEqual {
 		return "", INCORRECT_CREDENTIALS
 	}
 
-	return userCred.id.Hex(), nil
+	return userCr.UserID.Hex(), nil
 }
 
 func (repo *mongoUserRepository) AddUser(newUser *domain.ApiUserInfo) (string, error) {
@@ -103,6 +105,11 @@ func (repo *mongoUserRepository) AddUser(newUser *domain.ApiUserInfo) (string, e
 
 	userID, _ := res.InsertedID.(bson.ObjectID)
 	return userID.Hex(), nil
+}
+
+// TODO
+func (repo *mongoUserRepository) UpdateUser(userID string, updInfo *domain.ApiUserInfo) error {
+	return nil
 }
 
 func (repo *mongoUserRepository) GetUserInfo(userID string) (*domain.ApiUserInfo, error) {
@@ -163,25 +170,74 @@ func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) e
 	return nil
 }
 
-func (repo *mongoUserRepository) GetAvatarPath(userID string) (string, error) {
+// TODO
+func (repo *mongoUserRepository) DeletePet(userID, petID string) error {
+	isOwner, err := repo.isUserOwner(userID, petID)
+	if err != nil {
+		return err
+	}
+
+	if !isOwner {
+		return ACCESS_DENIED
+	}
+
+	//repo.Coll.DeleteOne(context.TODO(), bson.M{"_id": petID})
+
+	return nil
+}
+
+// TODO
+func (repo *mongoUserRepository) UpdatePet(userID, petID string, updInfo *domain.ApiPetInfo) error {
+	return nil
+}
+
+func (repo *mongoUserRepository) isUserOwner(userID, petID string) (bool, error) {
+	userMongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return false, BAD_USER_ID
+	}
+
+	petMongoID, err := bson.ObjectIDFromHex(petID)
+	if err != nil {
+		return false, BAD_PET_ID
+	}
+
+	filter := bson.M{
+		"_id": userMongoID,
+		"pets": bson.M{
+			"$elemMatch": bson.M{
+				"$id": petMongoID,
+			},
+		},
+	}
+
+	docCount, err := repo.Coll.CountDocuments(context.TODO(), filter)
+	if err != nil {
+		return false, err
+	}
+
+	return docCount != 0, nil
+}
+
+func (repo *mongoUserRepository) GetAvatarBytes(userID string) ([]byte, error) {
 	mongoID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
-		return "", BAD_USER_ID
+		return nil, BAD_USER_ID
 	}
 
 	var avaUrl struct {
-		avatarUrl string `bson:"avatar_url"`
+		AvatarBytes []byte `bson:"avatar_url"`
 	}
 
 	opt := options.FindOne().SetProjection(bson.M{"avatar_url": 1, "_id": 0})
 	err = repo.Coll.FindOne(context.TODO(), bson.M{"_id": mongoID}, opt).Decode(&avaUrl)
 	if errors.Is(err, mongo.ErrNoDocuments) {
-		return "", nil
+		return []byte{}, nil
 	} else if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return avaUrl.avatarUrl, nil
+	return avaUrl.AvatarBytes, nil
 }
 
 func (repo *mongoUserRepository) GetUserPets(userID string) ([]string, error) {
@@ -191,7 +247,7 @@ func (repo *mongoUserRepository) GetUserPets(userID string) ([]string, error) {
 	}
 
 	var userPets struct {
-		petIDs []bson.M `bson:"pets"`
+		PetIDs []bson.M `bson:"pets"`
 	}
 
 	opt := options.FindOne().SetProjection(bson.M{"pets": 1, "_id": 0})
@@ -202,8 +258,8 @@ func (repo *mongoUserRepository) GetUserPets(userID string) ([]string, error) {
 		return nil, err
 	}
 
-	strPetIDs := make([]string, len(userPets.petIDs))
-	for i, pet := range userPets.petIDs {
+	strPetIDs := make([]string, len(userPets.PetIDs))
+	for i, pet := range userPets.PetIDs {
 		petID, ok := pet["$id"].(bson.ObjectID)
 		if !ok {
 			return nil, serverErrors.CAST_ERROR
@@ -222,7 +278,7 @@ func (repo *mongoUserRepository) GetUserServices(userID string) ([]string, error
 	}
 
 	var userServices struct {
-		serviceIDs []bson.M `bson:"services"`
+		ServiceIDs []bson.M `bson:"services"`
 	}
 
 	opt := options.FindOne().SetProjection(bson.M{"services": 1, "_id": 0})
@@ -233,8 +289,8 @@ func (repo *mongoUserRepository) GetUserServices(userID string) ([]string, error
 		return nil, err
 	}
 
-	strServiceIDs := make([]string, len(userServices.serviceIDs))
-	for i, service := range userServices.serviceIDs {
+	strServiceIDs := make([]string, len(userServices.ServiceIDs))
+	for i, service := range userServices.ServiceIDs {
 		serviceID, ok := service["$id"].(bson.ObjectID)
 		if !ok {
 			return nil, serverErrors.CAST_ERROR

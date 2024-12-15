@@ -1,6 +1,10 @@
 package domain
 
-import "go.mongodb.org/mongo-driver/v2/bson"
+import (
+	"encoding/base64"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
 
 type ApiPetInfo struct {
 	PetID        string `json:"pet_id,omitempty"`
@@ -15,7 +19,7 @@ type DBPetInfo struct {
 	TypeOfAnimal string        `bson:"type"`
 	Name         string        `bson:"name,omitempty"`
 	Info         string        `bson:"info,omitempty"`
-	PetAvatar    string        `bson:"avatar_url,omitempty"`
+	PetAvatar    []byte        `bson:"avatar_url,omitempty"`
 }
 
 func (apiInfo *ApiPetInfo) ToDB() (*DBPetInfo, error) {
@@ -23,15 +27,25 @@ func (apiInfo *ApiPetInfo) ToDB() (*DBPetInfo, error) {
 		TypeOfAnimal: apiInfo.TypeOfAnimal,
 		Name:         apiInfo.Name,
 		Info:         apiInfo.Info,
-		PetAvatar:    apiInfo.PetAvatar,
 	}
 
-	dbID, err := bson.ObjectIDFromHex(apiInfo.PetID)
-	if err != nil {
-		return nil, err
+	if apiInfo.PetID != "" {
+		dbID, err := bson.ObjectIDFromHex(apiInfo.PetID)
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo.PetID = dbID
 	}
 
-	dbInfo.PetID = dbID
+	if apiInfo.PetAvatar != "" {
+		byteImage, err := base64.StdEncoding.DecodeString(apiInfo.PetAvatar)
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo.PetAvatar = byteImage
+	}
 
 	return dbInfo, nil
 }
@@ -42,7 +56,10 @@ func (dbInfo *DBPetInfo) ToApi() *ApiPetInfo {
 		TypeOfAnimal: dbInfo.TypeOfAnimal,
 		Name:         dbInfo.Name,
 		Info:         dbInfo.Info,
-		PetAvatar:    dbInfo.PetAvatar,
+	}
+
+	if len(dbInfo.PetAvatar) != 0 {
+		apiInfo.PetAvatar = base64.StdEncoding.EncodeToString(dbInfo.PetAvatar)
 	}
 
 	return apiInfo

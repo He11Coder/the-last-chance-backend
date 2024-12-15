@@ -49,7 +49,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	//Check the credentials in database. Authorization.
 	loginResp, err := h.userUsecase.Login(loginInfo)
 	if err != nil {
-		_ = responseTemplates.SendErrorMessage(w, AUTH_ERROR, http.StatusForbidden)
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusForbidden)
 		return
 	}
 

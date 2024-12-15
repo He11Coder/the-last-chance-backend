@@ -9,11 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-const MONGO_PORT = ":27017"
-const MONGO_URI = "mongodb://127.0.0.1" + MONGO_PORT
-
 func GetMongo() (*mongo.Client, error) {
-	opts := options.Client().ApplyURI(MONGO_URI)
+	opts := options.Client().ApplyURI(configs.MONGO_URI)
 	client, err := mongo.Connect(opts)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package redisTLC
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"mainService/pkg/serverErrors"
 
@@ -31,10 +32,11 @@ func (p *redisAuthRepository) AddSession(sessionID string, userID string) error 
 	defer connection.Close()
 
 	sessionKey := "sessions:" + sessionID
+	expiryTime := time.Now().Add(336 * time.Hour).Unix()
 
-	result, err := redis.String(connection.Do("SET", sessionKey, userID))
+	result, err := redis.String(connection.Do("SET", sessionKey, userID, "EXAT", expiryTime))
 	if err != nil {
-		return serverErrors.INTERNAL_SERVER_ERROR
+		return err
 	} else if result != "OK" {
 		return fmt.Errorf(result)
 	}

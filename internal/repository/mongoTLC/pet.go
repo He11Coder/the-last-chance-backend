@@ -12,7 +12,7 @@ import (
 
 type IPetRepository interface {
 	GetPetInfo(petID string) (*domain.ApiPetInfo, error)
-	GetAvatarPath(petID string) (string, error)
+	GetAvatarBytes(petID string) ([]byte, error)
 }
 
 type mongoPetRepository struct {
@@ -49,23 +49,23 @@ func (repo *mongoPetRepository) GetPetInfo(petID string) (*domain.ApiPetInfo, er
 	return apiInfo, nil
 }
 
-func (repo *mongoPetRepository) GetAvatarPath(petID string) (string, error) {
+func (repo *mongoPetRepository) GetAvatarBytes(petID string) ([]byte, error) {
 	mongoID, err := bson.ObjectIDFromHex(petID)
 	if err != nil {
-		return "", BAD_PET_ID
+		return nil, BAD_PET_ID
 	}
 
 	var avaUrl struct {
-		avatarUrl string `bson:"avatar_url"`
+		AvatarBytes []byte `bson:"avatar_url"`
 	}
 
 	opt := options.FindOne().SetProjection(bson.M{"avatar_url": 1, "_id": 0})
 	err = repo.Coll.FindOne(context.TODO(), bson.M{"_id": mongoID}, opt).Decode(&avaUrl)
 	if errors.Is(err, mongo.ErrNoDocuments) {
-		return "", nil
+		return []byte{}, nil
 	} else if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return avaUrl.avatarUrl, nil
+	return avaUrl.AvatarBytes, nil
 }

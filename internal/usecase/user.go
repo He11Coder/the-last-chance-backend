@@ -2,11 +2,9 @@ package usecase
 
 import (
 	"encoding/base64"
-	"mainService/configs"
 	"mainService/internal/domain"
 	"mainService/internal/repository/mongoTLC"
 	"mainService/internal/repository/redisTLC"
-	"os"
 
 	"github.com/google/uuid"
 )
@@ -91,19 +89,14 @@ func (ucase *UserUsecase) GetUserInfo(userID string) (*domain.ApiUserInfo, error
 }
 
 func (ucase *UserUsecase) GetUserAvatar(userID string) (string, error) {
-	avaPath, err := ucase.userRepo.GetAvatarPath(userID)
+	avaBytes, err := ucase.userRepo.GetAvatarBytes(userID)
 	if err != nil {
 		return "", nil
 	}
 
 	base64Image := ""
-	if avaPath != "" {
-		fileBytes, err := os.ReadFile(configs.CURR_DIR + avaPath)
-		if err != nil {
-			return "", err
-		}
-
-		base64Image = base64.StdEncoding.EncodeToString(fileBytes)
+	if len(avaBytes) != 0 {
+		base64Image = base64.StdEncoding.EncodeToString(avaBytes)
 	}
 
 	return base64Image, nil
@@ -123,8 +116,6 @@ func (ucase *UserUsecase) GetUserPets(userID string) (*domain.PetIDList, error) 
 }
 
 func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) error {
-	petInfo.PetAvatar = ""
-
 	err := ucase.userRepo.AddPet(userID, petInfo)
 	if err != nil {
 		return err
