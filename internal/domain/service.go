@@ -23,6 +23,7 @@ type ApiService struct {
 	Type        Role     `json:"role"`
 	UserID      string   `json:"user_id,omitempty"`
 	Title       string   `json:"title"`
+	Price       int32    `json:"price,omitempty"`
 	Description string   `json:"description,omitempty"`
 	UserImage   string   `json:"user_image,omitempty"`
 	PetIDs      []string `json:"pet_ids,omitempty"`
@@ -33,6 +34,7 @@ type DBService struct {
 	Type        Role          `bson:"role,omitempty"`
 	UserID      bson.M        `bson:"owner,omitempty"`
 	Title       string        `bson:"title"`
+	Price       int32         `bson:"price,omitempty"`
 	Description string        `bson:"description,omitempty"`
 	UserImage   []byte        `bson:"user_image,omitempty"`
 	PetIDs      []bson.M      `bson:"pets,omitempty"`
@@ -141,6 +143,7 @@ type DBServiceSerachResult struct {
 	Type        Role          `bson:"role,omitempty"`
 	UserID      bson.M        `bson:"owner,omitempty"`
 	Title       string        `bson:"title"`
+	Price       int32         `bson:"price,omitempty"`
 	Description string        `bson:"description,omitempty"`
 	Score       float64       `bson:"score,omitempty"`
 	UserImage   []byte        `bson:"user_image,omitempty"`
