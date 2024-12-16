@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/base64"
+	"mainService/pkg/authUtils"
 	"mainService/pkg/serverErrors"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -117,4 +118,62 @@ func (dbInfo *DBUserInfo) ToApi() (*ApiUserInfo, error) {
 	}
 
 	return apiInfo, nil
+}
+
+type ApiUserUpdate struct {
+	Login         string `json:"login,omitempty"`
+	OldPassword   string `json:"old_password,omitempty"`
+	NewPassword   string `json:"new_password,omitempty"`
+	Username      string `json:"username,omitempty"`
+	Contacts      string `json:"contacts,omitempty"`
+	UserImage     string `json:"user_image_string,omitempty"`
+	UserBackImage string `json:"background_image_string,omitempty"`
+}
+
+type DBUserUpdate struct {
+	Login          string `bson:"login,omitempty"`
+	HashedPassword []byte `bson:"hashed_password,omitempty"`
+	Salt           []byte `bson:"salt,omitempty"`
+	Username       string `bson:"name,omitempty"`
+	Contacts       string `bson:"contact,omitempty"`
+	UserImage      []byte `bson:"avatar_url,omitempty"`
+	UserBackImage  []byte `bson:"background_url,omitempty"`
+}
+
+func (api *ApiUserUpdate) ToDB() (*DBUserUpdate, error) {
+	db := &DBUserUpdate{
+		Login:    api.Login,
+		Username: api.Username,
+		Contacts: api.Contacts,
+	}
+
+	if api.NewPassword != "" {
+		newHashedPass, newSalt, err := authUtils.GenerateHash(api.NewPassword)
+		if err != nil {
+			return nil, err
+		}
+
+		db.HashedPassword = newHashedPass
+		db.Salt = newSalt
+	}
+
+	if api.UserImage != "" {
+		imageBytes, err := base64.StdEncoding.DecodeString(api.UserImage)
+		if err != nil {
+			return nil, err
+		}
+
+		db.UserImage = imageBytes
+	}
+
+	if api.UserBackImage != "" {
+		backImageBytes, err := base64.StdEncoding.DecodeString(api.UserBackImage)
+		if err != nil {
+			return nil, err
+		}
+
+		db.UserBackImage = backImageBytes
+	}
+
+	return db, nil
 }

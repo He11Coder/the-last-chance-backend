@@ -274,14 +274,17 @@ func Run() error {
 
 	userRepo := mongoTLC.NewMongoUserRepository(db.Database("tlc"))
 	petRepo := mongoTLC.NewMongoPetRepository(db.Database("tlc"))
+	serviceRepo := mongoTLC.NewMongoServiceRepository(db.Database("tlc"))
 	sessionRepo := redisTLC.NewRedisAuthRepository(redisDB)
 
 	userUsecase := usecase.NewUserUsecase(userRepo, sessionRepo)
 	petUsecase := usecase.NewPetUsecase(petRepo)
+	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, userRepo)
 
 	router := mux.NewRouter()
 	deliveryHTTP.NewUserHandler(router, userUsecase)
 	deliveryHTTP.NewPetHandler(router, petUsecase)
+	deliveryHTTP.NewServiceHandler(router, serviceUsecase)
 
 	/*router.HandleFunc("/pet_info/{petID}", GetPetInfo).Methods("GET")
 	router.HandleFunc("/login", Login).Methods("POST")

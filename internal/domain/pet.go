@@ -68,3 +68,36 @@ func (dbInfo *DBPetInfo) ToApi() *ApiPetInfo {
 type PetIDList struct {
 	PetIDs []string `json:"pet_ids"`
 }
+
+type ApiPetUpdate struct {
+	TypeOfAnimal string `json:"type_of_animal"`
+	Name         string `json:"name,omitempty"`
+	Info         string `json:"info,omitempty"`
+	PetAvatar    string `json:"avatar,omitempty"`
+}
+
+type DBPetUpdate struct {
+	TypeOfAnimal string `bson:"type"`
+	Name         string `bson:"name,omitempty"`
+	Info         string `bson:"info,omitempty"`
+	PetAvatar    []byte `bson:"avatar_url,omitempty"`
+}
+
+func (apiInfo *ApiPetUpdate) ToDB() (*DBPetUpdate, error) {
+	dbInfo := &DBPetUpdate{
+		TypeOfAnimal: apiInfo.TypeOfAnimal,
+		Name:         apiInfo.Name,
+		Info:         apiInfo.Info,
+	}
+
+	if apiInfo.PetAvatar != "" {
+		byteImage, err := base64.StdEncoding.DecodeString(apiInfo.PetAvatar)
+		if err != nil {
+			return nil, err
+		}
+
+		dbInfo.PetAvatar = byteImage
+	}
+
+	return dbInfo, nil
+}

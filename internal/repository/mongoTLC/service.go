@@ -15,11 +15,10 @@ import (
 )
 
 type IServiceRepository interface {
-	AddService(service *domain.ApiService) error
-	//TODO
-	DeleteService(userID, serviceID string) error
+	AddService(userID string, service *domain.ApiService) error
 	GetServiceByID(serviceID string) (*domain.ApiService, error)
 	GetServicesByIDs(serviceIDs ...string) ([]*domain.ApiService, error)
+	DeleteService(userID, serviceID string) error
 }
 
 type mongoServiceRepository struct {
@@ -34,7 +33,9 @@ func NewMongoServiceRepository(db *mongo.Database) IServiceRepository {
 	}
 }
 
-func (repo *mongoServiceRepository) AddService(service *domain.ApiService) error {
+func (repo *mongoServiceRepository) AddService(userID string, service *domain.ApiService) error {
+	service.UserID = userID
+
 	dbService, err := service.ToDB()
 	if err != nil {
 		return err
@@ -45,7 +46,6 @@ func (repo *mongoServiceRepository) AddService(service *domain.ApiService) error
 		return err
 	}
 
-	fmt.Println(res.InsertedID)
 	serviceDBRef := bson.M{
 		"$ref": "service",
 		"$id":  res.InsertedID,
@@ -55,7 +55,7 @@ func (repo *mongoServiceRepository) AddService(service *domain.ApiService) error
 		"$push": bson.M{"services": serviceDBRef},
 	}
 
-	mongoID, err := bson.ObjectIDFromHex(service.UserID)
+	mongoID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
 		return BAD_USER_ID
 	}
@@ -65,10 +65,6 @@ func (repo *mongoServiceRepository) AddService(service *domain.ApiService) error
 		return err
 	}
 
-	return nil
-}
-
-func (repo *mongoServiceRepository) DeleteService(userID, serviceID string) error {
 	return nil
 }
 
@@ -144,4 +140,77 @@ func (repo *mongoServiceRepository) GetServicesByIDs(serviceIDs ...string) ([]*d
 	}
 
 	return ApiResults, nil
+}
+
+func (repo *mongoServiceRepository) isUserServiceOwner(userID, serviceID string) (bool, error) {
+	userMongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return false, BAD_USER_ID
+	}
+
+	serviceMongoID, err := bson.ObjectIDFromHex(serviceID)
+	if err != nil {
+		return false, BAD_PET_ID
+	}
+
+	filter := bson.M{
+		"_id":       serviceMongoID,
+		"owner.$id": userMongoID,
+	}
+
+	docCount, err := repo.Coll.CountDocuments(context.TODO(), filter)
+	if err != nil {
+		return false, err
+	}
+
+	return docCount != 0, nil
+}
+
+func (repo *mongoServiceRepository) DeleteService(userID, serviceID string) error {
+	isOwner, err := repo.isUserServiceOwner(userID, serviceID)
+	if err != nil {
+		return err
+	}
+
+	if !isOwner {
+		return ACCESS_DENIED
+	}
+
+	userMongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return BAD_USER_ID
+	}
+
+	serviceMongoID, err := bson.ObjectIDFromHex(serviceID)
+	if err != nil {
+		return BAD_PET_ID
+	}
+
+	delRes, err := repo.Coll.DeleteOne(context.TODO(), bson.M{"_id": serviceMongoID})
+	if err != nil {
+		return err
+	}
+	if delRes.DeletedCount == 0 {
+		fmt.Println("PPPPP")
+		return NOT_FOUND
+	}
+
+	petDBRef := bson.M{
+		"$ref": "service",
+		"$id":  serviceMongoID,
+	}
+
+	update := bson.M{
+		"$pull": bson.M{"services": petDBRef},
+	}
+
+	updRes, err := repo.DB.Collection("user").UpdateByID(context.TODO(), userMongoID, update)
+	if err != nil {
+		return err
+	}
+	if updRes.MatchedCount == 0 {
+		return NOT_FOUND
+	}
+
+	return nil
 }

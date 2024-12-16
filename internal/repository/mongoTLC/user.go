@@ -17,17 +17,15 @@ import (
 
 type IUserRepository interface {
 	ValidateLogin(login string) error
+	GetUserLoginByID(userID string) (string, error)
 	CheckUser(cred *domain.LoginCredentials) (string, error)
 	AddUser(newUser *domain.ApiUserInfo) (string, error)
-	//TODO
-	UpdateUser(userID string, updInfo *domain.ApiUserInfo) error
+	UpdateUser(userID string, updInfo *domain.ApiUserUpdate) error
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
 	GetAvatarBytes(userID string) ([]byte, error)
 	AddPet(userID string, pet *domain.ApiPetInfo) error
-	//TODO
 	DeletePet(userID, petID string) error
-	//TODO
-	UpdatePet(userID, petID string, updInfo *domain.ApiPetInfo) error
+	UpdatePet(userID, petID string, updInfo *domain.ApiPetUpdate) error
 	GetUserPets(userID string) ([]string, error)
 	GetUserServices(userID string) ([]string, error)
 }
@@ -62,6 +60,27 @@ func (repo *mongoUserRepository) ValidateLogin(login string) error {
 	} else {
 		return LOGIN_EXISTS
 	}
+}
+
+func (repo *mongoUserRepository) GetUserLoginByID(userID string) (string, error) {
+	mongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return "", BAD_USER_ID
+	}
+
+	var login struct {
+		Login string `bson:"login"`
+	}
+
+	opt := options.FindOne().SetProjection(bson.M{"login": 1, "_id": 0})
+	err = repo.Coll.FindOne(context.TODO(), bson.M{"_id": mongoID}, opt).Decode(&login)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return "", NOT_FOUND
+	} else if err != nil {
+		return "", err
+	}
+
+	return login.Login, nil
 }
 
 func (repo *mongoUserRepository) CheckUser(cred *domain.LoginCredentials) (string, error) {
@@ -107,8 +126,26 @@ func (repo *mongoUserRepository) AddUser(newUser *domain.ApiUserInfo) (string, e
 	return userID.Hex(), nil
 }
 
-// TODO
-func (repo *mongoUserRepository) UpdateUser(userID string, updInfo *domain.ApiUserInfo) error {
+func (repo *mongoUserRepository) UpdateUser(userID string, updInfo *domain.ApiUserUpdate) error {
+	mongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return BAD_USER_ID
+	}
+
+	dbUpd, err := updInfo.ToDB()
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$set": dbUpd,
+	}
+
+	_, err = repo.Coll.UpdateByID(context.TODO(), mongoID, update)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -170,9 +207,8 @@ func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) e
 	return nil
 }
 
-// TODO
 func (repo *mongoUserRepository) DeletePet(userID, petID string) error {
-	isOwner, err := repo.isUserOwner(userID, petID)
+	isOwner, err := repo.isUserPetOwner(userID, petID)
 	if err != nil {
 		return err
 	}
@@ -181,17 +217,77 @@ func (repo *mongoUserRepository) DeletePet(userID, petID string) error {
 		return ACCESS_DENIED
 	}
 
-	//repo.Coll.DeleteOne(context.TODO(), bson.M{"_id": petID})
+	userMongoID, err := bson.ObjectIDFromHex(userID)
+	if err != nil {
+		return BAD_USER_ID
+	}
+
+	petMongoID, err := bson.ObjectIDFromHex(petID)
+	if err != nil {
+		return BAD_PET_ID
+	}
+
+	delRes, err := repo.DB.Collection("pet").DeleteOne(context.TODO(), bson.M{"_id": petMongoID})
+	if err != nil {
+		return err
+	}
+	if delRes.DeletedCount == 0 {
+		return NOT_FOUND
+	}
+
+	petDBRef := bson.M{
+		"$ref": "pet",
+		"$id":  petMongoID,
+	}
+
+	update := bson.M{
+		"$pull": bson.M{"pets": petDBRef},
+	}
+
+	updRes, err := repo.Coll.UpdateByID(context.TODO(), userMongoID, update)
+	if err != nil {
+		return err
+	}
+	if updRes.MatchedCount == 0 {
+		return NOT_FOUND
+	}
 
 	return nil
 }
 
-// TODO
-func (repo *mongoUserRepository) UpdatePet(userID, petID string, updInfo *domain.ApiPetInfo) error {
+func (repo *mongoUserRepository) UpdatePet(userID, petID string, updInfo *domain.ApiPetUpdate) error {
+	isOwner, err := repo.isUserPetOwner(userID, petID)
+	if err != nil {
+		return err
+	}
+
+	if !isOwner {
+		return ACCESS_DENIED
+	}
+
+	petMongoID, err := bson.ObjectIDFromHex(petID)
+	if err != nil {
+		return BAD_PET_ID
+	}
+
+	dbUpd, err := updInfo.ToDB()
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$set": dbUpd,
+	}
+
+	_, err = repo.DB.Collection("pet").UpdateByID(context.TODO(), petMongoID, update)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (repo *mongoUserRepository) isUserOwner(userID, petID string) (bool, error) {
+func (repo *mongoUserRepository) isUserPetOwner(userID, petID string) (bool, error) {
 	userMongoID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
 		return false, BAD_USER_ID

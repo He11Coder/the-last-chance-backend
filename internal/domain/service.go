@@ -14,6 +14,10 @@ const (
 	Customer Role = "master"
 )
 
+func IsRole(str Role) bool {
+	return str == Provider || str == Customer
+}
+
 type ApiService struct {
 	ServiceID   string   `json:"service_id"`
 	Type        Role     `json:"role"`
