@@ -135,3 +135,28 @@ func (db *DBService) ToApi() (*ApiService, error) {
 
 	return apiServ, nil
 }
+
+type DBServiceSerachResult struct {
+	ServiceID   bson.ObjectID `bson:"_id,omitempty"`
+	Type        Role          `bson:"role,omitempty"`
+	UserID      bson.M        `bson:"owner,omitempty"`
+	Title       string        `bson:"title"`
+	Description string        `bson:"description,omitempty"`
+	Score       float64       `bson:"score,omitempty"`
+	UserImage   []byte        `bson:"user_image,omitempty"`
+	PetIDs      []bson.M      `bson:"pets,omitempty"`
+}
+
+func (db *DBServiceSerachResult) ToApiService() (*ApiService, error) {
+	dbService := &DBService{
+		ServiceID:   db.ServiceID,
+		Type:        db.Type,
+		UserID:      db.UserID,
+		Title:       db.Title,
+		Description: db.Description,
+		UserImage:   db.UserImage,
+		PetIDs:      db.PetIDs,
+	}
+
+	return dbService.ToApi()
+}

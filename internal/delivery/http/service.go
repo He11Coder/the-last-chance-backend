@@ -24,6 +24,7 @@ func NewServiceHandler(router *mux.Router, serviceUCase usecase.IServiceUsecase)
 	router.HandleFunc("/get_service/{serviceID}", handler.GetService).Methods("GET")
 	router.HandleFunc("/get_user_services/{userID}", handler.GetUserServices).Methods("GET")
 	router.HandleFunc("/delete_service", handler.DeleteService).Methods("DELETE")
+	router.HandleFunc("/search_services", handler.SearchServices).Methods("GET")
 }
 
 func (h *ServiceHandler) AddService(w http.ResponseWriter, r *http.Request) {
@@ -115,4 +116,25 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *ServiceHandler) SearchServices(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	queryString := q.Get("query")
+
+	if queryString == "" {
+		_ = responseTemplates.SendErrorMessage(w, BAD_QUERY_PARAMETERS, http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.serviceUsecase.SearchServices(queryString)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		return
+	}
+
+	jsonServices, _ := json.Marshal(services)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonServices)
 }

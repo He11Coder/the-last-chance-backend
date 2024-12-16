@@ -240,11 +240,11 @@ func GetUsersPets(w http.ResponseWriter, r *http.Request) {
 }*/
 
 func Run() error {
-	db, err := GetMongo()
+	client, err := GetMongo()
 	if err != nil {
 		return err
 	}
-	defer db.Disconnect(context.TODO())
+	defer client.Disconnect(context.TODO())
 
 	redisDB := GetRedis()
 	defer redisDB.Close()
@@ -272,9 +272,14 @@ func Run() error {
 	//}
 	//userRepo.AddPet(userObjID, &PetDB[2])
 
-	userRepo := mongoTLC.NewMongoUserRepository(db.Database("tlc"))
-	petRepo := mongoTLC.NewMongoPetRepository(db.Database("tlc"))
-	serviceRepo := mongoTLC.NewMongoServiceRepository(db.Database("tlc"))
+	db, err := InitDBAndIndexes(client)
+	if err != nil {
+		return err
+	}
+
+	userRepo := mongoTLC.NewMongoUserRepository(db)
+	petRepo := mongoTLC.NewMongoPetRepository(db)
+	serviceRepo := mongoTLC.NewMongoServiceRepository(db)
 	sessionRepo := redisTLC.NewRedisAuthRepository(redisDB)
 
 	userUsecase := usecase.NewUserUsecase(userRepo, sessionRepo)

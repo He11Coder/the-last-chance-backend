@@ -1,15 +1,13 @@
 package mongoTLC
 
 import (
-
-	//"go.mongodb.org/mongo-driver/bson/primitive"
-
 	"context"
 	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"mainService/internal/domain"
 )
@@ -19,6 +17,7 @@ type IServiceRepository interface {
 	GetServiceByID(serviceID string) (*domain.ApiService, error)
 	GetServicesByIDs(serviceIDs ...string) ([]*domain.ApiService, error)
 	DeleteService(userID, serviceID string) error
+	SearchServices(queryString string) ([]*domain.ApiService, error)
 }
 
 type mongoServiceRepository struct {
@@ -213,4 +212,52 @@ func (repo *mongoServiceRepository) DeleteService(userID, serviceID string) erro
 	}
 
 	return nil
+}
+
+func (repo *mongoServiceRepository) SearchServices(queryString string) ([]*domain.ApiService, error) {
+	filter := bson.M{
+		"$text": bson.M{
+			"$search": queryString,
+		},
+	}
+
+	projection := bson.D{
+		{"score", bson.M{"$meta": "textScore"}},
+	}
+
+	opt := options.Find().SetProjection(projection).SetSort(bson.D{{"score", bson.M{"$meta": "textScore"}}})
+	cursor, err := repo.Coll.Find(context.TODO(), filter, opt)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, NOT_FOUND
+	} else if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	var rawResults []*domain.DBServiceSerachResult
+	for cursor.Next(context.TODO()) {
+		var curRes domain.DBServiceSerachResult
+
+		if err = cursor.Decode(&curRes); err != nil {
+			return nil, err
+		}
+
+		rawResults = append(rawResults, &curRes)
+	}
+
+	if err = cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	var results []*domain.ApiService
+	for _, res := range rawResults {
+		apiServ, err := res.ToApiService()
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, apiServ)
+	}
+
+	return results, nil
 }
