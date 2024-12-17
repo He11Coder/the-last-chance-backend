@@ -3,7 +3,6 @@ package mongoTLC
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -183,7 +182,6 @@ func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) (
 		return "", err
 	}
 
-	fmt.Println(res.InsertedID)
 	petDBRef := bson.M{
 		"$ref": "pet",
 		"$id":  res.InsertedID,

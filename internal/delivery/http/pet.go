@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	//"mainService/internal/domain"
 	"mainService/internal/usecase"
 	"mainService/pkg/responseTemplates"
 )
