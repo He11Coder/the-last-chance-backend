@@ -118,6 +118,8 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
@@ -205,14 +207,17 @@ func (h *UserHandler) AddPet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.userUsecase.AddPet(userID, newPet)
+	petIDToSend, err := h.userUsecase.AddPet(userID, newPet)
 	if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
 		fmt.Print(err)
 		return
 	}
 
+	jsonPetID, _ := json.Marshal(petIDToSend)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(jsonPetID)
 }
 
 func (h *UserHandler) DeletePet(w http.ResponseWriter, r *http.Request) {
@@ -243,6 +248,8 @@ func (h *UserHandler) UpdatePet(w http.ResponseWriter, r *http.Request) {
 		_ = responseTemplates.SendErrorMessage(w, BAD_QUERY_PARAMETERS, http.StatusBadRequest)
 		return
 	}
+
+	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

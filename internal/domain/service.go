@@ -19,14 +19,14 @@ func IsRole(str Role) bool {
 }
 
 type ApiService struct {
-	ServiceID   string   `json:"service_id"`
-	Type        Role     `json:"role"`
+	ServiceID   string   `json:"service_id,omitempty"`
+	Type        Role     `json:"role,omitempty"`
 	UserID      string   `json:"user_id,omitempty"`
-	Title       string   `json:"title"`
-	Price       int32    `json:"price,omitempty"`
+	Title       string   `json:"title,omitempty"`
+	Price       int32    `json:"price"`
 	Description string   `json:"description,omitempty"`
-	UserImage   string   `json:"user_image,omitempty"`
-	PetIDs      []string `json:"pet_ids,omitempty"`
+	UserImage   string   `json:"user_image"`
+	PetIDs      []string `json:"pet_ids"`
 }
 
 type DBService struct {
@@ -45,6 +45,7 @@ func (api *ApiService) ToDB() (*DBService, error) {
 		Type:        api.Type,
 		Title:       api.Title,
 		Description: api.Description,
+		Price:       api.Price,
 	}
 
 	if api.ServiceID != "" {
@@ -107,6 +108,7 @@ func (db *DBService) ToApi() (*ApiService, error) {
 		Type:        db.Type,
 		Title:       db.Title,
 		Description: db.Description,
+		Price:       db.Price,
 	}
 
 	if db.UserID != nil {
@@ -157,6 +159,7 @@ func (db *DBServiceSerachResult) ToApiService() (*ApiService, error) {
 		UserID:      db.UserID,
 		Title:       db.Title,
 		Description: db.Description,
+		Price:       db.Price,
 		UserImage:   db.UserImage,
 		PetIDs:      db.PetIDs,
 	}

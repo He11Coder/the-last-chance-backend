@@ -16,7 +16,7 @@ type IUserUsecase interface {
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
 	GetUserAvatar(userID string) (string, error)
 	GetUserPets(userID string) (*domain.PetIDList, error)
-	AddPet(userID string, petInfo *domain.ApiPetInfo) error
+	AddPet(userID string, petInfo *domain.ApiPetInfo) (*domain.ApiPetInfo, error)
 	DeletePet(userID, petID string) error
 	UpdatePet(userID, petID string, updInfo *domain.ApiPetUpdate) error
 }
@@ -151,13 +151,17 @@ func (ucase *UserUsecase) GetUserPets(userID string) (*domain.PetIDList, error) 
 	return apiPetIDs, nil
 }
 
-func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) error {
-	err := ucase.userRepo.AddPet(userID, petInfo)
+func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) (*domain.ApiPetInfo, error) {
+	petID, err := ucase.userRepo.AddPet(userID, petInfo)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	petIDStruct := &domain.ApiPetInfo{
+		PetID: petID,
+	}
+
+	return petIDStruct, nil
 }
 
 func (ucase *UserUsecase) DeletePet(userID, petID string) error {

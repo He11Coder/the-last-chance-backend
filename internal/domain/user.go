@@ -14,8 +14,8 @@ type ApiUserInfo struct {
 	Password      string   `json:"password,omitempty"`
 	Username      string   `json:"username,omitempty"`
 	Contacts      string   `json:"contacts,omitempty"`
-	UserImage     string   `json:"user_image_string,omitempty"`
-	UserBackImage string   `json:"background_image_string,omitempty"`
+	UserImage     string   `json:"user_image_string"`
+	UserBackImage string   `json:"background_image_string"`
 	PetIDs        []string `json:"pet_ids,omitempty"`
 }
 

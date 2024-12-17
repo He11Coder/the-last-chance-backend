@@ -23,6 +23,7 @@ func NewServiceHandler(router *mux.Router, serviceUCase usecase.IServiceUsecase)
 	router.HandleFunc("/add_service/{userID}", handler.AddService).Methods("POST")
 	router.HandleFunc("/get_service/{serviceID}", handler.GetService).Methods("GET")
 	router.HandleFunc("/get_user_services/{userID}", handler.GetUserServices).Methods("GET")
+	router.HandleFunc("/get_all_services", handler.GetAllServices).Methods("GET")
 	router.HandleFunc("/delete_service", handler.DeleteService).Methods("DELETE")
 	router.HandleFunc("/search_services", handler.SearchServices).Methods("GET")
 }
@@ -50,13 +51,16 @@ func (h *ServiceHandler) AddService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.serviceUsecase.AddService(userID, newService)
+	serviceIDToSend, err := h.serviceUsecase.AddService(userID, newService)
 	if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
 		return
 	}
 
+	jsonServiceID, _ := json.Marshal(serviceIDToSend)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(jsonServiceID)
 }
 
 func (h *ServiceHandler) GetService(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +92,19 @@ func (h *ServiceHandler) GetUserServices(w http.ResponseWriter, r *http.Request)
 	}
 
 	services, err := h.serviceUsecase.GetUserServices(userID)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
+		return
+	}
+
+	jsonServicesInfo, _ := json.Marshal(services)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonServicesInfo)
+}
+
+func (h *ServiceHandler) GetAllServices(w http.ResponseWriter, r *http.Request) {
+	services, err := h.serviceUsecase.GetAllServices()
 	if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
 		return

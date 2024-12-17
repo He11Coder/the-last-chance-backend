@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	//"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -23,7 +22,7 @@ type IUserRepository interface {
 	UpdateUser(userID string, updInfo *domain.ApiUserUpdate) error
 	GetUserInfo(userID string) (*domain.ApiUserInfo, error)
 	GetAvatarBytes(userID string) ([]byte, error)
-	AddPet(userID string, pet *domain.ApiPetInfo) error
+	AddPet(userID string, pet *domain.ApiPetInfo) (string, error)
 	DeletePet(userID, petID string) error
 	UpdatePet(userID, petID string, updInfo *domain.ApiPetUpdate) error
 	GetUserPets(userID string) ([]string, error)
@@ -171,17 +170,17 @@ func (repo *mongoUserRepository) GetUserInfo(userID string) (*domain.ApiUserInfo
 	return apiInfo, nil
 }
 
-func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) error {
+func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) (string, error) {
 	pet_col := repo.DB.Collection("pet")
 
 	dbInfo, err := pet.ToDB()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	res, err := pet_col.InsertOne(context.TODO(), *dbInfo)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	fmt.Println(res.InsertedID)
@@ -196,15 +195,17 @@ func (repo *mongoUserRepository) AddPet(userID string, pet *domain.ApiPetInfo) e
 
 	mongoID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
-		return BAD_USER_ID
+		return "", BAD_USER_ID
 	}
 
 	_, err = repo.Coll.UpdateByID(context.TODO(), mongoID, upd)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	petID, _ := res.InsertedID.(bson.ObjectID)
+
+	return petID.Hex(), nil
 }
 
 func (repo *mongoUserRepository) DeletePet(userID, petID string) error {

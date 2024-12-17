@@ -13,9 +13,10 @@ import (
 )
 
 type IServiceRepository interface {
-	AddService(userID string, service *domain.ApiService) error
+	AddService(userID string, service *domain.ApiService) (string, error)
 	GetServiceByID(serviceID string) (*domain.ApiService, error)
 	GetServicesByIDs(serviceIDs ...string) ([]*domain.ApiService, error)
+	GetAllServices() ([]*domain.ApiService, error)
 	DeleteService(userID, serviceID string) error
 	SearchServices(queryString string) ([]*domain.ApiService, error)
 }
@@ -32,17 +33,17 @@ func NewMongoServiceRepository(db *mongo.Database) IServiceRepository {
 	}
 }
 
-func (repo *mongoServiceRepository) AddService(userID string, service *domain.ApiService) error {
+func (repo *mongoServiceRepository) AddService(userID string, service *domain.ApiService) (string, error) {
 	service.UserID = userID
 
 	dbService, err := service.ToDB()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	res, err := repo.Coll.InsertOne(context.TODO(), *dbService)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	serviceDBRef := bson.M{
@@ -56,15 +57,17 @@ func (repo *mongoServiceRepository) AddService(userID string, service *domain.Ap
 
 	mongoID, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
-		return BAD_USER_ID
+		return "", BAD_USER_ID
 	}
 
 	_, err = repo.DB.Collection("user").UpdateByID(context.TODO(), mongoID, upd)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	serviceID, _ := res.InsertedID.(bson.ObjectID)
+
+	return serviceID.Hex(), nil
 }
 
 func (repo *mongoServiceRepository) GetServiceByID(serviceID string) (*domain.ApiService, error) {
@@ -163,6 +166,44 @@ func (repo *mongoServiceRepository) isUserServiceOwner(userID, serviceID string)
 	}
 
 	return docCount != 0, nil
+}
+
+func (repo *mongoServiceRepository) GetAllServices() ([]*domain.ApiService, error) {
+	cursor, err := repo.Coll.Find(context.TODO(), bson.M{})
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, NOT_FOUND
+	} else if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(context.TODO())
+
+	var DBresults []*domain.DBService
+	for cursor.Next(context.TODO()) {
+		service := new(domain.DBService)
+
+		if err = cursor.Decode(service); err != nil {
+			return nil, err
+		}
+
+		DBresults = append(DBresults, service)
+	}
+
+	if err = cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	var ApiResults []*domain.ApiService
+	for _, DBserv := range DBresults {
+		ApiServ, err := DBserv.ToApi()
+		if err != nil {
+			return nil, err
+		}
+
+		ApiResults = append(ApiResults, ApiServ)
+	}
+
+	return ApiResults, nil
 }
 
 func (repo *mongoServiceRepository) DeleteService(userID, serviceID string) error {

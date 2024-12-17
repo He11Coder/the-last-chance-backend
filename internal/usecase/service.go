@@ -1,15 +1,17 @@
 package usecase
 
 import (
+	"encoding/base64"
 	"mainService/internal/domain"
 	"mainService/internal/repository/mongoTLC"
 	"strings"
 )
 
 type IServiceUsecase interface {
-	AddService(userID string, service *domain.ApiService) error
+	AddService(userID string, service *domain.ApiService) (*domain.ApiService, error)
 	GetServiceByID(serviceID string) (*domain.ApiService, error)
 	GetUserServices(userID string) ([]*domain.ApiService, error)
+	GetAllServices() ([]*domain.ApiService, error)
 	DeleteService(userID, serviceID string) error
 	SearchServices(queryString string) ([]*domain.ApiService, error)
 }
@@ -29,22 +31,26 @@ func NewServiceUsecase(
 	}
 }
 
-func (ucase *ServiceUsecase) AddService(userID string, service *domain.ApiService) error {
+func (ucase *ServiceUsecase) AddService(userID string, service *domain.ApiService) (*domain.ApiService, error) {
 	isRole := domain.IsRole(service.Type)
 	if !isRole {
-		return INVALID_ROLE
+		return nil, INVALID_ROLE
 	}
 
 	if service.Title == "" {
-		return EMPTY_TITLE
+		return nil, EMPTY_TITLE
 	}
 
-	err := ucase.serviceRepo.AddService(userID, service)
+	serviceID, err := ucase.serviceRepo.AddService(userID, service)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	serviceIDStruct := &domain.ApiService{
+		ServiceID: serviceID,
+	}
+
+	return serviceIDStruct, nil
 }
 
 func (ucase *ServiceUsecase) GetServiceByID(serviceID string) (*domain.ApiService, error) {
@@ -52,6 +58,17 @@ func (ucase *ServiceUsecase) GetServiceByID(serviceID string) (*domain.ApiServic
 	if err != nil {
 		return nil, err
 	}
+
+	if len(service.PetIDs) == 0 {
+		service.PetIDs = []string{}
+	}
+
+	avatar, err := ucase.userRepo.GetAvatarBytes(service.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	service.UserImage = base64.StdEncoding.EncodeToString(avatar)
 
 	return service, nil
 }
@@ -65,6 +82,41 @@ func (ucase *ServiceUsecase) GetUserServices(userID string) ([]*domain.ApiServic
 	services, err := ucase.serviceRepo.GetServicesByIDs(serviceIDs...)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, serv := range services {
+		if len(serv.PetIDs) == 0 {
+			serv.PetIDs = []string{}
+		}
+
+		avatar, err := ucase.userRepo.GetAvatarBytes(serv.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		serv.UserImage = base64.StdEncoding.EncodeToString(avatar)
+	}
+
+	return services, nil
+}
+
+func (ucase *ServiceUsecase) GetAllServices() ([]*domain.ApiService, error) {
+	services, err := ucase.serviceRepo.GetAllServices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, serv := range services {
+		if len(serv.PetIDs) == 0 {
+			serv.PetIDs = []string{}
+		}
+
+		avatar, err := ucase.userRepo.GetAvatarBytes(serv.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		serv.UserImage = base64.StdEncoding.EncodeToString(avatar)
 	}
 
 	return services, nil

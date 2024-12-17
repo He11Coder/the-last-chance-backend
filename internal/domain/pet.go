@@ -8,15 +8,15 @@ import (
 
 type ApiPetInfo struct {
 	PetID        string `json:"pet_id,omitempty"`
-	TypeOfAnimal string `json:"type_of_animal"`
+	TypeOfAnimal string `json:"type_of_animal,omitempty"`
 	Name         string `json:"name,omitempty"`
 	Info         string `json:"info,omitempty"`
-	PetAvatar    string `json:"avatar,omitempty"`
+	PetAvatar    string `json:"avatar"`
 }
 
 type DBPetInfo struct {
 	PetID        bson.ObjectID `bson:"_id,omitempty"`
-	TypeOfAnimal string        `bson:"type"`
+	TypeOfAnimal string        `bson:"type,omitempty"`
 	Name         string        `bson:"name,omitempty"`
 	Info         string        `bson:"info,omitempty"`
 	PetAvatar    []byte        `bson:"avatar_url,omitempty"`
@@ -70,14 +70,14 @@ type PetIDList struct {
 }
 
 type ApiPetUpdate struct {
-	TypeOfAnimal string `json:"type_of_animal"`
+	TypeOfAnimal string `json:"type_of_animal,omitempty"`
 	Name         string `json:"name,omitempty"`
 	Info         string `json:"info,omitempty"`
 	PetAvatar    string `json:"avatar,omitempty"`
 }
 
 type DBPetUpdate struct {
-	TypeOfAnimal string `bson:"type"`
+	TypeOfAnimal string `bson:"type,omitempty"`
 	Name         string `bson:"name,omitempty"`
 	Info         string `bson:"info,omitempty"`
 	PetAvatar    []byte `bson:"avatar_url,omitempty"`
@@ -100,4 +100,15 @@ func (apiInfo *ApiPetUpdate) ToDB() (*DBPetUpdate, error) {
 	}
 
 	return dbInfo, nil
+}
+
+type PetAdviceRequest struct {
+	Animal string `json:"animal"`
+	Prompt string `json:"prompt"`
+}
+
+type PetAdviceResponse struct {
+	Advice string `json:"advice"`
+	Animal string `json:"animal"`
+	Prompt string `json:"prompt"`
 }
