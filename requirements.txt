@@ -1,2 +1,3 @@
 Flask==3.0.0
 yandex-cloud-ml-sdk
+python-dotenv

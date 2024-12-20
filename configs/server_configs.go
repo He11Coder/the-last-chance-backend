@@ -1,26 +1,35 @@
 package configs
 
-import "os"
+import (
+	"os"
+)
 
-const PORT = ":8081"
+var PORT = ":"
 
 var CURR_DIR, _ = os.Getwd()
 
-const MONGO_PORT = ":8100"
-const MONGO_URI = "mongodb://127.0.0.1" + MONGO_PORT
-
-type redisConfig struct {
-	protocol       string
-	networkAddress string
-	port           string
+type dbConfig struct {
+	protocol string
+	host     string
+	port     string
 }
 
-var AuthRedisConfig = redisConfig{
-	protocol:       "redis",
-	networkAddress: "127.0.0.1",
-	port:           "8008",
+var MainMongoConfig = dbConfig{}
+
+var AuthRedisConfig = dbConfig{}
+
+func InitConfigs() {
+	PORT = PORT + os.Getenv("MAIN_SERVICE_PORT")
+
+	MainMongoConfig.protocol = os.Getenv("MONGO_PROTOCOL")
+	MainMongoConfig.host = os.Getenv("MONGO_HOST")
+	MainMongoConfig.port = os.Getenv("MONGO_PORT")
+
+	AuthRedisConfig.protocol = os.Getenv("REDIS_PROTOCOL")
+	AuthRedisConfig.host = os.Getenv("REDIS_HOST")
+	AuthRedisConfig.port = os.Getenv("REDIS_PORT")
 }
 
-func (rConf redisConfig) GetConnectionURL() string {
-	return rConf.protocol + "://" + rConf.networkAddress + ":" + rConf.port
+func (conf dbConfig) GetConnectionURI() string {
+	return conf.protocol + "://" + conf.host + ":" + conf.port
 }

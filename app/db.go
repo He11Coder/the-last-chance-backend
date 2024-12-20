@@ -11,7 +11,7 @@ import (
 )
 
 func GetMongo() (*mongo.Client, error) {
-	opts := options.Client().ApplyURI(configs.MONGO_URI)
+	opts := options.Client().ApplyURI(configs.MainMongoConfig.GetConnectionURI())
 	client, err := mongo.Connect(opts)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func GetRedis() *redis.Pool {
 		MaxConnLifetime: 0,
 
 		Dial: func() (redis.Conn, error) {
-			conn, err := redis.DialURL(configs.AuthRedisConfig.GetConnectionURL())
+			conn, err := redis.DialURL(configs.AuthRedisConfig.GetConnectionURI())
 			if err != nil {
 				return nil, err
 			}

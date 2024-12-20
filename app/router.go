@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 
 	"mainService/configs"
 	deliveryHTTP "mainService/internal/delivery/http"
@@ -15,6 +16,12 @@ import (
 )
 
 func Run() error {
+	if err := godotenv.Load("configs/.env"); err != nil {
+		return err
+	}
+
+	configs.InitConfigs()
+
 	client, err := GetMongo()
 	if err != nil {
 		return err

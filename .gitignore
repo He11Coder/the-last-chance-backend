@@ -1,3 +1,5 @@
 /redis_data
 cmd/main/petlink
 /venv
+*.env
+__pycache__
