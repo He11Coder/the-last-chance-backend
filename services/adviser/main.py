@@ -1,5 +1,8 @@
 from yandex_cloud_ml_sdk import YCloudML
 from flask import Flask, jsonify, request
+
+import sys
+sys.path.append('..')
 from env_loader import AdviserParameters
 
 #Initialize Flask parameters and Yandex Cloud connection

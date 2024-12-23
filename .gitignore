@@ -1,5 +1,7 @@
 /redis_data
+/rabbitmq
 cmd/main/petlink
-/venv
-*.env
 __pycache__
+venv
+*.env
+nsfw_env
