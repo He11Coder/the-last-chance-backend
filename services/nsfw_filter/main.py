@@ -18,7 +18,7 @@ params = NSFWValidatorParameters()
 # The model is a `keras_core.Model` object.
 model = n2.make_open_nsfw_model(weights_path=params.WEIGHTS_FILE_PATH)
 
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', port=8001))
 channel = connection.channel()
 
 channel.queue_declare(queue='nsfw_validation_queue', durable=True)
@@ -46,7 +46,7 @@ def on_request(ch, method, props, body):
                              properties=pika.BasicProperties(correlation_id = props.correlation_id,
                                                              delivery_mode=pika.DeliveryMode.Persistent),
                              body=err_message)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            return
 
         image_bytes = base64.b64decode(base64_image)
         pil_image = Image.open(BytesIO(image_bytes))
@@ -57,15 +57,18 @@ def on_request(ch, method, props, body):
                          properties=pika.BasicProperties(correlation_id = props.correlation_id,
                                                          delivery_mode=pika.DeliveryMode.Persistent),
                          body=res_to_return)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+
     except Exception as e:
         err_message = json.dumps({"error": str(e), "code": 500}).encode('utf-8')
         ch.basic_publish(exchange='',
-                             routing_key=props.reply_to,
-                             properties=pika.BasicProperties(correlation_id = props.correlation_id,
-                                                             delivery_mode=pika.DeliveryMode.Persistent),
-                             body=err_message)
+                         routing_key=props.reply_to,
+                         properties=pika.BasicProperties(correlation_id = props.correlation_id,
+                                                         delivery_mode=pika.DeliveryMode.Persistent),
+                         body=err_message)
+
+    finally:
         ch.basic_ack(delivery_tag=method.delivery_tag)
+    
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(queue='nsfw_validation_queue', on_message_callback=on_request)

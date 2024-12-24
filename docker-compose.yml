@@ -15,7 +15,7 @@ services:
     ports: 
     - "8008:6379"
     volumes:
-    - $PWD/redis_data:/data
+    - ./redis_data:/data
 
   rabbitmq:
     image: rabbitmq:3.10.7-management
@@ -26,8 +26,8 @@ services:
     volumes:
       - ./rabbitmq:/var/lib/rabbitmq
     ports:
-      - 15672:15672
-      - 5672:5672
+      - 8005:15672
+      - 8001:5672
 
 volumes:
   dbdata6:

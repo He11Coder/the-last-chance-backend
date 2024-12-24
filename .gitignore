@@ -5,3 +5,9 @@ __pycache__
 venv
 *.env
 nsfw_env
+*.png
+*.jpg
+*.jpeg
+*.webp
+!default.jpg
+!sergeant.png

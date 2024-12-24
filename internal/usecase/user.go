@@ -6,6 +6,8 @@ import (
 	"mainService/internal/repository/mongoTLC"
 	"mainService/internal/repository/redisTLC"
 
+	"mainService/pkg/nsfwFilter"
+
 	"github.com/google/uuid"
 )
 
@@ -36,6 +38,54 @@ func NewUserUsecase(
 	}
 }
 
+func (ucase *UserUsecase) ValidateImagesForNSFW(avatar, backImage string) error {
+	imagesToValidate := []string{}
+
+	if avatar != "" {
+		imagesToValidate = append(imagesToValidate, avatar)
+	}
+	if backImage != "" {
+		imagesToValidate = append(imagesToValidate, backImage)
+	}
+
+	if len(imagesToValidate) != 0 {
+		results := nsfwFilter.RunInParallel(imagesToValidate...)
+
+		if avatar != "" {
+			userImageRes := results[0]
+			if userImageRes.ProcessingErr != nil {
+				return userImageRes.ProcessingErr
+			}
+
+			if !userImageRes.Inf.IsSafe {
+				return NSFW_CONTENT_AVATAR_ERROR
+			}
+
+			if backImage != "" {
+				backImageRes := results[1]
+				if backImageRes.ProcessingErr != nil {
+					return backImageRes.ProcessingErr
+				}
+
+				if !backImageRes.Inf.IsSafe {
+					return NSFW_CONTENT_BACK_IMAGE_ERROR
+				}
+			}
+		} else if backImage != "" {
+			backImageRes := results[0]
+			if backImageRes.ProcessingErr != nil {
+				return backImageRes.ProcessingErr
+			}
+
+			if !backImageRes.Inf.IsSafe {
+				return NSFW_CONTENT_BACK_IMAGE_ERROR
+			}
+		}
+	}
+
+	return nil
+}
+
 func (ucase *UserUsecase) Login(cred *domain.LoginCredentials) (*domain.LoginResponse, error) {
 	userID, err := ucase.userRepo.CheckUser(cred)
 	if err != nil {
@@ -53,6 +103,11 @@ func (ucase *UserUsecase) Login(cred *domain.LoginCredentials) (*domain.LoginRes
 }
 
 func (ucase *UserUsecase) AddUser(newUser *domain.ApiUserInfo) (*domain.LoginResponse, error) {
+	validErr := ucase.ValidateImagesForNSFW(newUser.UserImage, newUser.UserBackImage)
+	if validErr != nil {
+		return nil, validErr
+	}
+
 	verifStatus := ucase.userRepo.ValidateLogin(newUser.Login)
 	if verifStatus != nil {
 		return nil, verifStatus
@@ -78,6 +133,11 @@ func (ucase *UserUsecase) AddUser(newUser *domain.ApiUserInfo) (*domain.LoginRes
 }
 
 func (ucase *UserUsecase) UpdateUser(userID string, updInfo *domain.ApiUserUpdate) error {
+	validErr := ucase.ValidateImagesForNSFW(updInfo.UserImage, updInfo.UserBackImage)
+	if validErr != nil {
+		return validErr
+	}
+
 	if updInfo.Login != "" {
 		err := ucase.userRepo.ValidateLogin(updInfo.Login)
 		if err != nil {
@@ -152,6 +212,11 @@ func (ucase *UserUsecase) GetUserPets(userID string) (*domain.PetIDList, error) 
 }
 
 func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) (*domain.ApiPetInfo, error) {
+	validErr := ucase.ValidateImagesForNSFW(petInfo.PetAvatar, "")
+	if validErr != nil {
+		return nil, validErr
+	}
+
 	petID, err := ucase.userRepo.AddPet(userID, petInfo)
 	if err != nil {
 		return nil, err
@@ -174,6 +239,11 @@ func (ucase *UserUsecase) DeletePet(userID, petID string) error {
 }
 
 func (ucase *UserUsecase) UpdatePet(userID, petID string, updInfo *domain.ApiPetUpdate) error {
+	validErr := ucase.ValidateImagesForNSFW(updInfo.PetAvatar, "")
+	if validErr != nil {
+		return validErr
+	}
+
 	err := ucase.userRepo.UpdatePet(userID, petID, updInfo)
 	if err != nil {
 		return err
