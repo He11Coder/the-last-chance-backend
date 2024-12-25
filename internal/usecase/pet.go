@@ -9,6 +9,7 @@ import (
 type IPetUsecase interface {
 	GetPetInfo(petID string) (*domain.ApiPetInfo, error)
 	GetPetAvatar(petID string) (string, error)
+	GetTopAnimals(top int64) ([]string, error)
 }
 
 type PetUsecase struct {
@@ -49,4 +50,12 @@ func (ucase *PetUsecase) GetPetAvatar(petID string) (string, error) {
 	}
 
 	return base64Image, nil
+}
+
+func (ucase *PetUsecase) GetTopAnimals(top int64) ([]string, error) {
+	if top <= 0 {
+		return nil, POSITIVE_NUMBER_REQUIRED
+	}
+
+	return ucase.petRepo.GetTopAnimals(top)
 }

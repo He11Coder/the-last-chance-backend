@@ -25,7 +25,7 @@ func NewServiceHandler(router *mux.Router, serviceUCase usecase.IServiceUsecase)
 	router.HandleFunc("/get_user_services/{userID}", handler.GetUserServices).Methods("GET")
 	router.HandleFunc("/get_all_services", handler.GetAllServices).Methods("GET")
 	router.HandleFunc("/delete_service", handler.DeleteService).Methods("DELETE")
-	router.HandleFunc("/search_services", handler.SearchServices).Methods("GET")
+	router.HandleFunc("/search_services", handler.SearchServices).Methods("POST")
 }
 
 func (h *ServiceHandler) AddService(w http.ResponseWriter, r *http.Request) {
@@ -139,12 +139,22 @@ func (h *ServiceHandler) SearchServices(w http.ResponseWriter, r *http.Request) 
 	q := r.URL.Query()
 	queryString := q.Get("query")
 
-	if queryString == "" {
-		_ = responseTemplates.SendErrorMessage(w, BAD_QUERY_PARAMETERS, http.StatusBadRequest)
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
 		return
 	}
 
-	services, err := h.serviceUsecase.SearchServices(queryString)
+	serviceFilter := new(domain.ServiceFilter)
+	err = json.Unmarshal(body, serviceFilter)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, INVALID_BODY, http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.serviceUsecase.SearchServices(queryString, serviceFilter)
 	if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
 		return

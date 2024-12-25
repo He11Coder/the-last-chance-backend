@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"mainService/internal/domain"
 	"mainService/internal/repository/mongoTLC"
+	"mainService/pkg/swearWordsDetector"
 	"strings"
 )
 
@@ -13,21 +14,24 @@ type IServiceUsecase interface {
 	GetUserServices(userID string) ([]*domain.ApiService, error)
 	GetAllServices() ([]*domain.ApiService, error)
 	DeleteService(userID, serviceID string) error
-	SearchServices(queryString string) ([]*domain.ApiService, error)
+	SearchServices(queryString string, filters *domain.ServiceFilter) ([]*domain.ApiService, error)
 }
 
 type ServiceUsecase struct {
 	serviceRepo mongoTLC.IServiceRepository
 	userRepo    mongoTLC.IUserRepository
+	petRepo     mongoTLC.IPetRepository
 }
 
 func NewServiceUsecase(
 	serviceRepository mongoTLC.IServiceRepository,
 	userRepository mongoTLC.IUserRepository,
+	petRepository mongoTLC.IPetRepository,
 ) IServiceUsecase {
 	return &ServiceUsecase{
 		serviceRepo: serviceRepository,
 		userRepo:    userRepository,
+		petRepo:     petRepository,
 	}
 }
 
@@ -35,6 +39,11 @@ func (ucase *ServiceUsecase) AddService(userID string, service *domain.ApiServic
 	isRole := domain.IsRole(service.Type)
 	if !isRole {
 		return nil, INVALID_ROLE
+	}
+
+	containsSwearWords := swearWordsDetector.DetectInMultipleInputs(service.Description, service.Title)
+	if containsSwearWords {
+		return nil, SWEAR_WORDS_ERROR
 	}
 
 	if service.Title == "" {
@@ -48,6 +57,22 @@ func (ucase *ServiceUsecase) AddService(userID string, service *domain.ApiServic
 
 	serviceIDStruct := &domain.ApiService{
 		ServiceID: serviceID,
+	}
+
+	if len(service.PetIDs) != 0 {
+		for _, petID := range service.PetIDs {
+			info, err := ucase.petRepo.GetPetInfo(petID)
+			if err != nil {
+				return nil, err
+			}
+
+			if info.TypeOfAnimal != "" {
+				err = ucase.petRepo.IncrementAnimal(info.TypeOfAnimal, serviceID)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 
 	return serviceIDStruct, nil
@@ -123,7 +148,28 @@ func (ucase *ServiceUsecase) GetAllServices() ([]*domain.ApiService, error) {
 }
 
 func (ucase *ServiceUsecase) DeleteService(userID, serviceID string) error {
-	err := ucase.serviceRepo.DeleteService(userID, serviceID)
+	servInfo, err := ucase.serviceRepo.GetServiceByID(serviceID)
+	if err != nil {
+		return err
+	}
+
+	if len(servInfo.PetIDs) != 0 {
+		for _, petID := range servInfo.PetIDs {
+			petInfo, err := ucase.petRepo.GetPetInfo(petID)
+			if err != nil {
+				return err
+			}
+
+			if petInfo.TypeOfAnimal != "" {
+				err = ucase.petRepo.DecrementAnimal(petInfo.TypeOfAnimal, serviceID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	err = ucase.serviceRepo.DeleteService(userID, serviceID)
 	if err != nil {
 		return err
 	}
@@ -131,13 +177,12 @@ func (ucase *ServiceUsecase) DeleteService(userID, serviceID string) error {
 	return nil
 }
 
-func (ucase *ServiceUsecase) SearchServices(queryString string) ([]*domain.ApiService, error) {
-	queryString = strings.TrimSpace(queryString)
-	if queryString == "" {
-		return nil, EMPTY_SEARCH_STRING
+func (ucase *ServiceUsecase) SearchServices(queryString string, filters *domain.ServiceFilter) ([]*domain.ApiService, error) {
+	if (filters.MinPrice > filters.MaxPrice && (filters.MaxPrice != 0)) || (filters.MinPrice < 0) || (filters.MaxPrice < 0) {
+		return nil, INVALID_PRICE_RANGE
 	}
 
-	services, err := ucase.serviceRepo.SearchServices(queryString)
+	services, err := ucase.serviceRepo.SearchServices(strings.TrimSpace(queryString), filters)
 	if err != nil {
 		return nil, err
 	}

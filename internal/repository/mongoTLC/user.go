@@ -239,15 +239,31 @@ func (repo *mongoUserRepository) DeletePet(userID, petID string) error {
 		"$id":  petMongoID,
 	}
 
-	update := bson.M{
+	updateUser := bson.M{
 		"$pull": bson.M{"pets": petDBRef},
 	}
 
-	updRes, err := repo.Coll.UpdateByID(context.TODO(), userMongoID, update)
+	updRes, err := repo.Coll.UpdateByID(context.TODO(), userMongoID, updateUser)
 	if err != nil {
 		return err
 	}
 	if updRes.MatchedCount == 0 {
+		return NOT_FOUND
+	}
+
+	filter := bson.M{
+		"pets": bson.M{"$elemMatch": petDBRef},
+	}
+
+	updateServices := bson.M{
+		"$pull": bson.M{"pets": petDBRef},
+	}
+
+	res, err := repo.DB.Collection("service").UpdateMany(context.TODO(), filter, updateServices)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
 		return NOT_FOUND
 	}
 

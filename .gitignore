@@ -3,8 +3,9 @@
 cmd/main/petlink
 __pycache__
 venv
-*.env
 nsfw_env
+adviser_env
+*.env
 *.png
 *.jpg
 *.jpeg

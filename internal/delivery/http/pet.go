@@ -23,6 +23,7 @@ func NewPetHandler(router *mux.Router, petUCase usecase.IPetUsecase) {
 	}
 
 	router.HandleFunc("/pet_info/{petID}", handler.GetPetInfo).Methods("GET")
+	router.HandleFunc("/get_top_animals", handler.GetTopAnimals).Methods("GET")
 	router.HandleFunc("/get_advice", handler.GetPetCareAdvice).Methods("GET")
 }
 
@@ -45,6 +46,24 @@ func (h *PetHandler) GetPetInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonInfo)
+}
+
+func (h *PetHandler) GetTopAnimals(w http.ResponseWriter, r *http.Request) {
+	topAnimals, err := h.petUsecase.GetTopAnimals(30)
+	if err != nil {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusInternalServerError)
+		fmt.Print(err)
+		return
+	}
+
+	mapResult := map[string]interface{}{
+		"animals": topAnimals,
+	}
+
+	jsonResult, _ := json.Marshal(mapResult)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResult)
 }
 
 func (h *PetHandler) GetPetCareAdvice(w http.ResponseWriter, r *http.Request) {

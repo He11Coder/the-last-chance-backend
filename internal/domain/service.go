@@ -166,3 +166,9 @@ func (db *DBServiceSerachResult) ToApiService() (*ApiService, error) {
 
 	return dbService.ToApi()
 }
+
+type ServiceFilter struct {
+	MinPrice int32    `json:"min_price,omitempty"`
+	MaxPrice int32    `json:"max_price,omitempty"`
+	Animals  []string `json:"animals,omitempty"`
+}

@@ -13,6 +13,7 @@ import (
 	"mainService/internal/repository/mongoTLC"
 	"mainService/internal/repository/redisTLC"
 	"mainService/internal/usecase"
+	"mainService/pkg/swearWordsDetector"
 )
 
 func Run() error {
@@ -21,6 +22,11 @@ func Run() error {
 	}
 
 	configs.InitConfigs()
+
+	err := swearWordsDetector.BuildAndCompileRegexp()
+	if err != nil {
+		return err
+	}
 
 	client, err := GetMongo()
 	if err != nil {
@@ -43,7 +49,7 @@ func Run() error {
 
 	userUsecase := usecase.NewUserUsecase(userRepo, sessionRepo)
 	petUsecase := usecase.NewPetUsecase(petRepo)
-	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, userRepo)
+	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, userRepo, petRepo)
 
 	router := mux.NewRouter()
 	deliveryHTTP.NewUserHandler(router, userUsecase)
