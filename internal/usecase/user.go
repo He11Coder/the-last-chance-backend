@@ -7,6 +7,7 @@ import (
 	"mainService/internal/repository/redisTLC"
 
 	"mainService/pkg/nsfwFilter"
+	"mainService/pkg/serverErrors"
 	"mainService/pkg/swearWordsDetector"
 
 	"github.com/google/uuid"
@@ -59,7 +60,7 @@ func (ucase *UserUsecase) ValidateImagesForNSFW(avatar, backImage string) error 
 			}
 
 			if !userImageRes.Inf.IsSafe {
-				return NSFW_CONTENT_AVATAR_ERROR
+				return serverErrors.NSFW_CONTENT_AVATAR_ERROR
 			}
 
 			if backImage != "" {
@@ -69,7 +70,7 @@ func (ucase *UserUsecase) ValidateImagesForNSFW(avatar, backImage string) error 
 				}
 
 				if !backImageRes.Inf.IsSafe {
-					return NSFW_CONTENT_BACK_IMAGE_ERROR
+					return serverErrors.NSFW_CONTENT_BACK_IMAGE_ERROR
 				}
 			}
 		} else if backImage != "" {
@@ -79,7 +80,7 @@ func (ucase *UserUsecase) ValidateImagesForNSFW(avatar, backImage string) error 
 			}
 
 			if !backImageRes.Inf.IsSafe {
-				return NSFW_CONTENT_BACK_IMAGE_ERROR
+				return serverErrors.NSFW_CONTENT_BACK_IMAGE_ERROR
 			}
 		}
 	}
@@ -111,7 +112,7 @@ func (ucase *UserUsecase) AddUser(newUser *domain.ApiUserInfo) (*domain.LoginRes
 
 	containsSwearWords := swearWordsDetector.DetectInMultipleInputs(newUser.Login, newUser.Username, newUser.Contacts)
 	if containsSwearWords {
-		return nil, SWEAR_WORDS_ERROR
+		return nil, serverErrors.SWEAR_WORDS_ERROR
 	}
 
 	verifStatus := ucase.userRepo.ValidateLogin(newUser.Login)
@@ -146,7 +147,7 @@ func (ucase *UserUsecase) UpdateUser(userID string, updInfo *domain.ApiUserUpdat
 
 	containsSwearWords := swearWordsDetector.DetectInMultipleInputs(updInfo.Login, updInfo.Username, updInfo.Contacts)
 	if containsSwearWords {
-		return SWEAR_WORDS_ERROR
+		return serverErrors.SWEAR_WORDS_ERROR
 	}
 
 	if updInfo.Login != "" {
@@ -230,7 +231,7 @@ func (ucase *UserUsecase) AddPet(userID string, petInfo *domain.ApiPetInfo) (*do
 
 	containsSwearWords := swearWordsDetector.DetectInMultipleInputs(petInfo.Info, petInfo.Name, petInfo.TypeOfAnimal)
 	if containsSwearWords {
-		return nil, SWEAR_WORDS_ERROR
+		return nil, serverErrors.SWEAR_WORDS_ERROR
 	}
 
 	petID, err := ucase.userRepo.AddPet(userID, petInfo)
@@ -262,7 +263,7 @@ func (ucase *UserUsecase) UpdatePet(userID, petID string, updInfo *domain.ApiPet
 
 	containsSwearWords := swearWordsDetector.DetectInMultipleInputs(updInfo.Info, updInfo.Name, updInfo.TypeOfAnimal)
 	if containsSwearWords {
-		return SWEAR_WORDS_ERROR
+		return serverErrors.SWEAR_WORDS_ERROR
 	}
 
 	err := ucase.userRepo.UpdatePet(userID, petID, updInfo)

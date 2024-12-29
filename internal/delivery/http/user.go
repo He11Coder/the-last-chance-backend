@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"mainService/internal/domain"
 	"mainService/internal/usecase"
 	"mainService/pkg/responseTemplates"
+	"mainService/pkg/serverErrors"
 )
 
 type UserHandler struct {
@@ -50,7 +52,13 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	loginResp, err := h.userUsecase.AddUser(newUser)
-	if err != nil {
+	if errors.Is(err, serverErrors.SWEAR_WORDS_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusUnprocessableEntity)
+		return
+	} else if errors.Is(err, serverErrors.NSFW_CONTENT_AVATAR_ERROR) || errors.Is(err, serverErrors.NSFW_CONTENT_BACK_IMAGE_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusNotAcceptable)
+		return
+	} else if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
 		return
 	}
@@ -134,9 +142,14 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.userUsecase.UpdateUser(userID, updInfo)
-	if err != nil {
+	if errors.Is(err, serverErrors.SWEAR_WORDS_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusUnprocessableEntity)
+		return
+	} else if errors.Is(err, serverErrors.NSFW_CONTENT_AVATAR_ERROR) || errors.Is(err, serverErrors.NSFW_CONTENT_BACK_IMAGE_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusNotAcceptable)
+		return
+	} else if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
-		fmt.Print(err)
 		return
 	}
 
@@ -208,9 +221,14 @@ func (h *UserHandler) AddPet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	petIDToSend, err := h.userUsecase.AddPet(userID, newPet)
-	if err != nil {
+	if errors.Is(err, serverErrors.SWEAR_WORDS_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusUnprocessableEntity)
+		return
+	} else if errors.Is(err, serverErrors.NSFW_CONTENT_AVATAR_ERROR) || errors.Is(err, serverErrors.NSFW_CONTENT_BACK_IMAGE_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusNotAcceptable)
+		return
+	} else if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
-		fmt.Print(err)
 		return
 	}
 
@@ -265,9 +283,14 @@ func (h *UserHandler) UpdatePet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.userUsecase.UpdatePet(userID, petID, updInfo)
-	if err != nil {
+	if errors.Is(err, serverErrors.SWEAR_WORDS_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusUnprocessableEntity)
+		return
+	} else if errors.Is(err, serverErrors.NSFW_CONTENT_AVATAR_ERROR) || errors.Is(err, serverErrors.NSFW_CONTENT_BACK_IMAGE_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusNotAcceptable)
+		return
+	} else if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
-		fmt.Print(err)
 		return
 	}
 

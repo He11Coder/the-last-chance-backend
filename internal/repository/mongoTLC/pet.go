@@ -3,6 +3,7 @@ package mongoTLC
 import (
 	"context"
 	"errors"
+	"strings"
 
 	//"fmt"
 	"mainService/internal/domain"
@@ -78,7 +79,9 @@ func (repo *mongoPetRepository) IncrementAnimal(typeOfAnimal string, serviceID s
 		return err
 	}
 
-	filter := bson.M{"type_of_animal": typeOfAnimal}
+	normalizedType := strings.TrimSpace(strings.ToLower(typeOfAnimal))
+
+	filter := bson.M{"type_of_animal": normalizedType}
 
 	servDBRef := bson.M{
 		"$ref": "service",
@@ -87,14 +90,14 @@ func (repo *mongoPetRepository) IncrementAnimal(typeOfAnimal string, serviceID s
 
 	update := bson.D{
 		{"$setOnInsert", bson.M{
-			"type_of_animal": typeOfAnimal,
+			"type_of_animal": normalizedType,
 			//"count":          0,
 			//"services":       []bson.M{servDBRef},
 		}},
 		{"$inc", bson.M{"count": 1}},
 		{"$push", bson.M{"services": servDBRef}},
 		/*"$setOnInsert": bson.M{
-			"type_of_animal": typeOfAnimal,
+			"type_of_animal": normalizedType,
 			"count":          0,
 			//"services":       []bson.M{servDBRef},
 		},*/
@@ -115,7 +118,9 @@ func (repo *mongoPetRepository) DecrementAnimal(typeOfAnimal string, serviceID s
 		return err
 	}
 
-	filter := bson.M{"type_of_animal": typeOfAnimal}
+	normalizedType := strings.TrimSpace(strings.ToLower(typeOfAnimal))
+
+	filter := bson.M{"type_of_animal": normalizedType}
 
 	servDBRef := bson.M{
 		"$ref": "service",

@@ -2,10 +2,12 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"mainService/internal/domain"
 	"mainService/internal/usecase"
 	"mainService/pkg/responseTemplates"
+	"mainService/pkg/serverErrors"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -52,7 +54,10 @@ func (h *ServiceHandler) AddService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceIDToSend, err := h.serviceUsecase.AddService(userID, newService)
-	if err != nil {
+	if errors.Is(err, serverErrors.SWEAR_WORDS_ERROR) {
+		_ = responseTemplates.SendErrorMessage(w, err, http.StatusUnprocessableEntity)
+		return
+	} else if err != nil {
 		_ = responseTemplates.SendErrorMessage(w, err, http.StatusBadRequest)
 		return
 	}

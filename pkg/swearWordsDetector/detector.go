@@ -70,7 +70,7 @@ func buildRegexpPattern(swearWordsList []string) string {
 func getSubstitution(char rune) []rune {
 	switch char {
 	case 'a', 'A', 'а', 'А':
-		return []rune{'a', 'а', '@', '4'}
+		return []rune{'a', 'а', '@'}
 	case 'o', 'O', 'о', 'О':
 		return []rune{'o', 'о', '0'}
 	case 'e', 'E', 'е', 'Е':
@@ -80,7 +80,7 @@ func getSubstitution(char rune) []rune {
 	case 'w', 'W', 'ш', 'Ш':
 		return []rune{'w', 'ш'}
 	case 't', 'T', 'т', 'Т':
-		return []rune{'t', 'т', '7', 'm'}
+		return []rune{'t', 'т', 'm'}
 	case 'y', 'Y', 'у', 'У':
 		return []rune{'y', 'у'}
 	case 'p', 'P', 'р', 'Р':

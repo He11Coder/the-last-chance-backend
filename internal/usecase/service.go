@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"mainService/internal/domain"
 	"mainService/internal/repository/mongoTLC"
+	"mainService/pkg/serverErrors"
 	"mainService/pkg/swearWordsDetector"
 	"strings"
 )
@@ -43,7 +44,7 @@ func (ucase *ServiceUsecase) AddService(userID string, service *domain.ApiServic
 
 	containsSwearWords := swearWordsDetector.DetectInMultipleInputs(service.Description, service.Title)
 	if containsSwearWords {
-		return nil, SWEAR_WORDS_ERROR
+		return nil, serverErrors.SWEAR_WORDS_ERROR
 	}
 
 	if service.Title == "" {
@@ -185,6 +186,19 @@ func (ucase *ServiceUsecase) SearchServices(queryString string, filters *domain.
 	services, err := ucase.serviceRepo.SearchServices(strings.TrimSpace(queryString), filters)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, serv := range services {
+		if len(serv.PetIDs) == 0 {
+			serv.PetIDs = []string{}
+		}
+
+		avatar, err := ucase.userRepo.GetAvatarBytes(serv.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		serv.UserImage = base64.StdEncoding.EncodeToString(avatar)
 	}
 
 	return services, err
